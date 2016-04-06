@@ -95,3 +95,26 @@ def run():
     if not LearnPage.objects.filter(title='Learn Page'):
         lp = LearnPage(title='Learn Page', slug='learn-page', owner=admin_user)
         publish_page(lp, bfp)
+
+    # Create and configure pages for testing page states
+    if not DemoPage.objects.filter(slug='draft-page'):
+        draft = DemoPage(title='Draft Page', slug='draft-page', owner=admin_user, live=False, shared=False)
+        site_root.add_child(instance=draft)
+        draft.save_revision(user=admin_user)
+
+    if not DemoPage.objects.filter(slug='shared-page'):
+        shared = DemoPage(title='Shared Page', slug='shared-page', owner=admin_user, live=False, shared=True)
+        site_root.add_child(instance=shared)
+        shared.save_revision(user=admin_user)
+
+    if not DemoPage.objects.filter(slug='live-page'):
+        live = DemoPage(title='Live Page', slug='live-page', owner=admin_user, live=True, shared=True)
+        publish_page(live)
+
+    if not DemoPage.objects.filter(slug='live-draft-page'):
+        livedraft = DemoPage(title='Live Draft Page', slug='live-draft-page', owner=admin_user, live=True, shared=True)
+        publish_page(livedraft)
+        livedraft.live = False
+        livedraft.shared = False
+        livedraft.title = 'Live Page'
+        livedraft.save_revision(user=admin_user)
