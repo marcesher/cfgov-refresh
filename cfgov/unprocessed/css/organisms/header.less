@@ -89,6 +89,14 @@
         > .wrapper {
             > .m-global-search {
                 float: right;
+
+                .respond-to-max( @bp-xs-max, {
+                    margin-right: -15px;
+                } );
+
+                .respond-to-range( @bp-sm-min, @bp-sm-max {
+                    margin-right: -30px;
+                } );
             }
         }
 
