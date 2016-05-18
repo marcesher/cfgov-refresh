@@ -1,4 +1,5 @@
-import os, re,HTMLParser
+from __future__ import absolute_import
+import os, re, HTMLParser
 from urlparse import urlparse
 
 from django.contrib.staticfiles.storage import staticfiles_storage
@@ -11,11 +12,12 @@ from jinja2 import Environment, contextfunction, Markup
 from sheerlike import environment as sheerlike_environment
 from compressor.contrib.jinja2ext import CompressorExtension
 from flags.template_functions import flag_enabled, flag_disabled
-from util.util import get_unique_id
+from .util.util import get_unique_id
 
 from wagtail.wagtailcore.rich_text import expand_db_html, RichText
 from bs4 import BeautifulSoup
 from django.conf import settings
+from processors.processors_common import fix_link
 
 default_app_config = 'v1.apps.V1AppConfig'
 
@@ -24,8 +26,9 @@ def environment(**options):
     options['extensions'].append('jinja2.ext.loopcontrols')
     env = sheerlike_environment(**options)
     env.autoescape = True
-    from v1.models import ref, CFGOVPage
+    from v1.models import CFGOVPage
     from v1.templatetags import share
+    from v1.util import ref
     env.globals.update({
         'static': staticfiles_storage.url,
         'global_dict': {
@@ -40,10 +43,13 @@ def environment(**options):
         'fcm_label': ref.fcm_label,
         'choices_for_page_type': ref.choices_for_page_type,
         'is_blog': ref.is_blog,
+        'is_report': ref.is_report,
         'get_page_state_url': share.get_page_state_url,
         'parse_links': external_links_filter,
         'get_protected_url': get_protected_url,
         'related_metadata_tags': related_metadata_tags,
+        'get_filter_data': get_filter_data,
+        'cfgovpage_objects': CFGOVPage.objects,
     })
     env.filters.update({
         'slugify': slugify,
@@ -52,19 +58,35 @@ def environment(**options):
 
 
 def parse_links(soup):
-    link_pattern = re.compile(settings.EXTERNAL_LINK_PATTERN)
-    icon_pattern = re.compile(settings.EXTERNAL_ICON_PATTERN)
+    extlink_pattern = re.compile(settings.EXTERNAL_LINK_PATTERN)
+    noncfpb_pattern = re.compile(settings.NONCFPB_LINK_PATTERN)
+    files_pattern = re.compile(settings.FILES_LINK_PATTERN)
     a_class = os.environ.get('EXTERNAL_A_CSS', 'icon-link icon-link__external-link')
     span_class = os.environ.get('EXTERNAL_SPAN_CSS', 'icon-link_text')
+
+    # This removes style tags <style>
+    for s in soup('style'):
+        s.decompose()
+
+    # This removes all inline style attr's
+    for tag in soup.recursiveChildGenerator():
+        try:
+            del tag['style']
+        except:
+            # 'NavigableString' object has does not have attr's
+            pass
+
     for a in soup.find_all('a', href=True):
-        # Sets the link to an external one if you're leaving .gov 
-        if link_pattern.match(a['href']):
-            a['href'] = '/external-site/?ext_url=' + a['href']
         # Sets the icon to indicate you're leaving consumerfinance.gov
-        if icon_pattern.match(a['href']):
+        if noncfpb_pattern.match(a['href']):
+            # Sets the link to an external one if you're leaving .gov 
+            if extlink_pattern.match(a['href']):
+                a['href'] = '/external-site/?ext_url=' + a['href']
             a.attrs.update({'class': a_class})
-            a.append(' ') # We want an extra space before the icon
+            a.append(' ')  # We want an extra space before the icon
             a.append(soup.new_tag('span', attrs='class="%s"' % span_class))
+        elif not files_pattern.match(a['href']):
+            fix_link(a)
     return soup
 
 
@@ -85,15 +107,23 @@ def render_stream_child(context, stream_child):
     # Create a new context based on the current one as we can't edit it directly
     new_context = context.get_all()
     # Add the value on the context (value is the keyword chosen by wagtail for the blocks context)
-    new_context['value'] = stream_child.value
+    try:
+        new_context['value'] = stream_child.value
+    except:
+        new_context['value'] = stream_child
+
     # Render the template with the context
     html = template.render(new_context)
     unescaped = HTMLParser.HTMLParser().unescape(html)
     # Return the rendered template as safe html
     return Markup(unescaped)
 
+
 @contextfunction
 def get_protected_url(context, page):
+    if page is None:
+        return '#'
+    
     request_hostname = urlparse(context['request'].url).hostname
     url = page.url
     if url is None:  # If page is not aligned to a site root return None
@@ -108,6 +138,7 @@ def get_protected_url(context, page):
         else:
             return '#'
 
+
 @contextfunction
 def related_metadata_tags(context, page):
     request = context['request']
@@ -115,17 +146,19 @@ def related_metadata_tags(context, page):
     tags = {'links': []}
     # From an ancestor, get the form ids then use the first id since the 
     # filterable list on the page will probably have the first id on the page.
-    id = None
-    filter_page = None
-    for ancestor in page.get_ancestors().reverse().specific():
-        if ancestor.specific_class.__name__ in ['BrowseFilterablePage', 'SublandingFilterablePage']:
-            filter_page = ancestor
-            id = util.get_form_id(ancestor, request.GET)
-            break
+    id, filter_page = get_filter_data(page)
     for tag in page.specific.tags.names():
         tag_link = {'text': tag, 'url': ''}
-        if id is not None:
+        if id is not None and filter_page is not None:
             param = '?filter' + str(id) + '_topics=' + tag
             tag_link['url'] = get_protected_url(context, filter_page) + param
         tags['links'].append(tag_link)
     return tags
+
+
+def get_filter_data(page):
+    for ancestor in page.get_ancestors().reverse().specific():
+        if ancestor.specific_class.__name__ in ['BrowseFilterablePage', 'SublandingFilterablePage',
+                                                'EventArchivePage', 'NewsroomLandingPage']:
+            return util.get_form_id(ancestor), ancestor
+    return None, None

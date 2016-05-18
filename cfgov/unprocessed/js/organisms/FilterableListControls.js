@@ -3,7 +3,9 @@
 // Required modules.
 var atomicHelpers = require( '../modules/util/atomic-helpers' );
 var ERROR_MESSAGES = require( '../config/error-messages-config' );
+var Expandable = require( '../molecules/Expandable' );
 var getClosestElement = require( '../modules/util/dom-traverse' ).closest;
+var Multiselect = require( '../molecules/Multiselect' );
 var Notification = require( '../molecules/Notification' );
 var validators = require( '../modules/util/validators' );
 
@@ -42,8 +44,16 @@ function FilterableListControls( element ) {
    * Initialize FilterableListControls instance.
    */
   function init( ) {
+
+    // TODO: FilterableListControls should use expandable
+    //       behavior (FlyoutMenu), not an expandable directly.
+    var expandable = new Expandable( _dom );
+    expandable.init();
+
     _notification = new Notification( _dom );
     _notification.init();
+
+    atomicHelpers.instantiateAll( 'select[multiple]', Multiselect );
 
     _initEvents();
   }
@@ -214,7 +224,7 @@ function FilterableListControls( element ) {
 
     if ( isInGroup ) {
       var groupName = field.getAttribute( 'data-group' ) ||
-                field.getAttribute( 'name' );
+                      field.getAttribute( 'name' );
       var groupSelector = '[name=' + groupName + ']:checked,' +
                           '[data-group=' + groupName + ']:checked';
       fieldset = _form.querySelectorAll( groupSelector ) || [];

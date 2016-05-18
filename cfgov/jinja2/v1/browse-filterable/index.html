@@ -25,13 +25,12 @@
         {% if 'filter_controls' in block.block_type %}
             <div class="block
                     block__flush-top">
-
-                {% set f = forms.pop(0) %}
                 {% import 'organisms/filterable-list-controls.html' as flc with context %}
-                {{ flc.render(block.value, f, loop.index0) }}
+                {{ flc.render(block.value, loop.index0) }}
             </div>
         {% else %}
-            {% include 'templates/render_block.html' with context %}
+            {% import 'templates/render_block.html' as render_block with context %}
+            {{ render_block.render(block, loop.index) }}
         {% endif %}
     {% endfor %}
     {% if page.sidefoot %}

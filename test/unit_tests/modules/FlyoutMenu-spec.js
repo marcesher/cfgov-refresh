@@ -29,9 +29,12 @@ describe( 'FlyoutMenu', function() {
   var document;
   var HTML_SNIPPET =
     '<div data-js-hook="flyout-menu">' +
-      '<button data-js-hook="flyout-menu_trigger"></button>' +
-      '<div data-js-hook="flyout-menu_content">' +
-        '<button data-js-hook="flyout-menu_alt-trigger"></button>' +
+      '<button data-js-hook="flyout-menu_trigger" ' +
+              'aria-pressed="false" ' +
+              'aria-expanded="false"></button>' +
+      '<div data-js-hook="flyout-menu_content" aria-expanded="false">' +
+        '<button data-js-hook="flyout-menu_alt-trigger" ' +
+                'aria-expanded="false"></button>' +
       '</div>' +
     '</div>';
 
@@ -72,6 +75,12 @@ describe( 'FlyoutMenu', function() {
     } );
 
     it( 'should have correct state before initializing', function() {
+      expect( triggerDom.getAttribute( 'aria-pressed' ) ).to.equal( 'false' );
+      expect( triggerDom.getAttribute( 'aria-expanded' ) ).to.equal( 'false' );
+      expect( contentDom.getAttribute( 'aria-expanded' ) ).to.equal( 'false' );
+      expect( altTriggerDom.getAttribute( 'aria-pressed' ) ).to.be.null;
+      expect( altTriggerDom.getAttribute( 'aria-expanded' ) ).to.equal( 'false' );
+
       expect( flyoutMenu.isAnimating() ).to.be.false;
       expect( flyoutMenu.isExpanded() ).to.be.false;
       expect( flyoutMenu.getTransition() ).to.be.undefined;
@@ -150,24 +159,26 @@ describe( 'FlyoutMenu', function() {
       expect( args.target ).to.equal( flyoutMenu );
       expect( args.type ).to.equal( 'expandEnd' );
 
-      // Check expected aria-expanded state.
+      // Check expected aria attributes state.
+      expect( triggerDom.getAttribute( 'aria-pressed' ) ).to.equal( 'true' );
       expect( triggerDom.getAttribute( 'aria-expanded' ) ).to.equal( 'true' );
       expect( contentDom.getAttribute( 'aria-expanded' ) ).to.equal( 'true' );
+      expect( altTriggerDom.getAttribute( 'aria-pressed' ) ).to.be.null;
       expect( altTriggerDom.getAttribute( 'aria-expanded' ) )
         .to.equal( 'true' );
     } );
 
-    it( 'should dispatch events and set aria-expanded, ' +
+    it( 'should dispatch events and set aria attributes, ' +
         'when called by trigger click', function() {
       triggerDom.click();
     } );
 
-    it( 'should dispatch events and set aria-expanded, ' +
+    it( 'should dispatch events and set aria attributes, ' +
         'when called by alt trigger click', function() {
       altTriggerDom.click();
     } );
 
-    it( 'should dispatch events and set aria-expanded, ' +
+    it( 'should dispatch events and set aria attributes, ' +
         'when called directly', function() {
       flyoutMenu.expand();
     } );
@@ -197,24 +208,26 @@ describe( 'FlyoutMenu', function() {
       expect( args.target ).to.equal( flyoutMenu );
       expect( args.type ).to.equal( 'collapseEnd' );
 
-      // Check expected aria-expanded state.
+      // Check expected aria attribute states.
+      expect( triggerDom.getAttribute( 'aria-pressed' ) ).to.equal( 'false' );
       expect( triggerDom.getAttribute( 'aria-expanded' ) ).to.equal( 'false' );
       expect( contentDom.getAttribute( 'aria-expanded' ) ).to.equal( 'false' );
+      expect( altTriggerDom.getAttribute( 'aria-pressed' ) ).to.be.null;
       expect( altTriggerDom.getAttribute( 'aria-expanded' ) )
         .to.equal( 'false' );
     } );
 
-    it( 'should dispatch events and set aria-expanded, ' +
+    it( 'should dispatch events and set aria attributes, ' +
         'when called by trigger click', function() {
       triggerDom.click();
     } );
 
-    it( 'should dispatch events and set aria-expanded, ' +
+    it( 'should dispatch events and set aria attributes, ' +
         'when called by alt trigger click', function() {
       altTriggerDom.click();
     } );
 
-    it( 'should dispatch events and set aria-expanded, ' +
+    it( 'should dispatch events and set aria attributes, ' +
         'when called directly', function() {
       flyoutMenu.collapse();
     } );
@@ -223,7 +236,7 @@ describe( 'FlyoutMenu', function() {
   describe( '.setExpandTransition()', function() {
     it( 'should set a transition', function( done ) {
       flyoutMenu.init();
-      var transition = new MoveTransition( contentDom );
+      var transition = new MoveTransition( contentDom ).init();
       flyoutMenu.setExpandTransition( transition, transition.moveLeft );
       flyoutMenu.addEventListener( 'expandEnd', function() {
         try {
@@ -241,7 +254,7 @@ describe( 'FlyoutMenu', function() {
   describe( '.setCollapseTransition()', function() {
     it( 'should set a transition', function( done ) {
       flyoutMenu.init();
-      var transition = new MoveTransition( contentDom );
+      var transition = new MoveTransition( contentDom ).init();
       triggerDom.click();
       flyoutMenu.setCollapseTransition( transition, transition.moveLeft );
       flyoutMenu.addEventListener( 'collapseEnd', function() {
@@ -261,12 +274,27 @@ describe( 'FlyoutMenu', function() {
     it( 'should return a transition instance', function() {
       flyoutMenu.init();
       expect( flyoutMenu.getTransition() ).to.be.undefined;
-      var transition = new MoveTransition( contentDom );
+      var transition = new MoveTransition( contentDom ).init();
       flyoutMenu.setExpandTransition( transition, transition.moveLeft );
       flyoutMenu.setCollapseTransition( transition, transition.moveToOrigin );
       expect( flyoutMenu.getTransition() ).to.equal( transition );
       expect( flyoutMenu.getTransition( FlyoutMenu.COLLAPSE_TYPE ) )
         .to.equal( transition );
+    } );
+  } );
+
+  describe( '.clearTransitions()', function() {
+    it( 'should remove all transitions', function() {
+      flyoutMenu.init();
+      var transition = new MoveTransition( contentDom ).init();
+      flyoutMenu.setExpandTransition( transition, transition.moveLeft );
+      flyoutMenu.setCollapseTransition( transition, transition.moveToOrigin );
+      var hasClass = contentDom.classList.contains( 'u-move-transition' );
+      expect( hasClass ).to.be.true;
+      flyoutMenu.clearTransitions();
+      expect( flyoutMenu.getTransition() ).to.be.undefined;
+      hasClass = contentDom.classList.contains( 'u-move-transition' );
+      expect( hasClass ).to.be.false;
     } );
   } );
 

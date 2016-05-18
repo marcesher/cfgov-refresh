@@ -6,6 +6,7 @@ var breakpointState = require( '../modules/util/breakpoint-state' );
 var ClearableInput = require( '../modules/ClearableInput' );
 var EventObserver = require( '../modules/util/EventObserver' );
 var FlyoutMenu = require( '../modules/FlyoutMenu' );
+var fnBind = require( '../modules/util/fn-bind' ).fnBind;
 var MoveTransition = require( '../modules/transition/MoveTransition' );
 
 /**
@@ -21,10 +22,7 @@ var MoveTransition = require( '../modules/transition/MoveTransition' );
 function GlobalSearch( element ) { // eslint-disable-line max-statements, no-inline-comments, max-len
 
   var BASE_CLASS = 'm-global-search';
-
   var _dom = atomicHelpers.checkDom( element, BASE_CLASS, 'GlobalSearch' );
-  var _triggerSel = '.' + BASE_CLASS + '_trigger';
-  var _triggerDom = _dom.querySelector( _triggerSel );
   var _contentDom = _dom.querySelector( '.' + BASE_CLASS + '_content' );
   var _flyoutMenu = new FlyoutMenu( _dom );
   var _searchInputDom;
@@ -63,8 +61,7 @@ function GlobalSearch( element ) { // eslint-disable-line max-statements, no-inl
     // Initialize new clearable input behavior on the input-contains-label.
     var clearableInput = new ClearableInput( inputContainsLabel );
     clearableInput.init();
-
-    var handleExpandBeginBinded = _handleExpandBegin.bind( this );
+    var handleExpandBeginBinded = fnBind( _handleExpandBegin, this );
     _flyoutMenu.addEventListener( 'expandBegin', handleExpandBeginBinded );
     _flyoutMenu.addEventListener( 'collapseBegin', _handleCollapseBegin );
     _flyoutMenu.addEventListener( 'collapseEnd', _handleCollapseEnd );
@@ -145,9 +142,15 @@ function GlobalSearch( element ) { // eslint-disable-line max-statements, no-inl
    */
   function _handleExpandBegin() {
     this.dispatchEvent( 'expandBegin', { target: this } );
-    // If it's the desktop view, hide the "Search" button.
-    if ( _isInDesktop() ) { _triggerDom.classList.add( 'u-hidden' ); }
+
+    // TODO: Remove when Android 4.0-4.4 support is dropped.
+    // Hack to fix reflow issues on legacy Android devices.
+    _contentDom.style.display = 'none';
+    _contentDom.offsetHeight; // eslint-disable-line no-unused-expressions, no-inline-comments, max-len
+    _contentDom.style.display = '';
+
     _contentDom.classList.remove( 'u-invisible' );
+
     _searchInputDom.select();
 
     document.body.addEventListener( 'mousedown', _handleBodyClick );
@@ -158,7 +161,6 @@ function GlobalSearch( element ) { // eslint-disable-line max-statements, no-inl
    * Use this to perform post-collapseBegin actions.
    */
   function _handleCollapseBegin() {
-    _triggerDom.classList.remove( 'u-hidden' );
     document.body.removeEventListener( 'mousedown', _handleBodyClick );
   }
 

@@ -8,28 +8,12 @@ from wagtail.wagtailcore.blocks.stream_block import StreamValue
 from wagtail.wagtailcore.blocks.struct_block import StructValue
 from ref import related_posts_categories
 
-def id_validator(id_string, search=re.compile(r'[^a-zA-Z0-9-_]').search):
-    if id_string:
-        return not bool(search(id_string))
-    else:
-        return False
-
-
-# example_case ==> ExampleCase
-def to_camel_case(snake_str):
-    snake_str = snake_str.capitalize()
-    components = snake_str.split('_')
-    return components[0] + "".join(x.title() for x in components[1:])
-
-
 def get_unique_id(prefix='', suffix=''):
     index = hex(int(time() * 10000000))[2:]
     return prefix + str(index) + suffix
 
-
-    # These messages are manually mirrored on the
-    # Javascript side in error-messages-config.js
-
+# These messages are manually mirrored on the
+# Javascript side in error-messages-config.js
 
 ERROR_MESSAGES = {
     'CHECKBOX_ERRORS': {
@@ -70,37 +54,52 @@ def most_common(lst):
         return [most] + most_common(new_list)
 
 
-def get_form_id(page, get_request):
-    from filterable_context import get_form_specific_filter_data
-
-    form_ids = []
-
-    form_ids = get_form_specific_filter_data(page, page.get_form_class(),
-                                                      get_request).keys()
+def get_form_id(page):
+    form_ids = page.get_filter_ids()
     if form_ids:
         return form_ids[0]
     else:
-        return None
+        return 0
 
 
 def instanceOfBrowseOrFilterablePages(page):
     from ..models import BrowsePage, BrowseFilterablePage
-    return isinstance(page, BrowsePage) or isinstance(page, BrowseFilterablePage)
+    return isinstance(page, (BrowsePage, BrowseFilterablePage))
 
 
 # For use by Browse type pages to get the secondary navigation items
-def get_secondary_nav_items(current, hostname, exclude_siblings=False):
+# TODO: Move into BrowsePage class once BrowseFilterablePage has been merged
+# into BrowsePage
+def get_secondary_nav_items(current, hostname):
     from ..templatetags.share import get_page_state_url
     on_staging = os.environ.get('STAGING_HOSTNAME') == hostname
     nav_items = []
     parent = current.get_parent().specific
     page = parent if instanceOfBrowseOrFilterablePages(parent) else current
 
+    # TODO: Remove this ASAP once Press Resources gets its own Wagtail page
+    if page.slug == 'newsroom':
+        return [
+            {
+                'title': page.title,
+                'slug': page.slug,
+                'url': get_page_state_url({}, page),
+                'children': [
+                    {
+                        'title': 'Press Resources',
+                        'slug': 'press-resources',
+                        'url': '/newsroom/press-resources/',
+                    }
+                ],
+            }
+        ], True
+    # END TODO
+
     pages = [page] if page.secondary_nav_exclude_sibling_pages else page.get_appropriate_siblings(hostname)
 
     for sibling in pages:
-        # Only if it's a Browse type page
-        if 'Browse' in sibling.specific_class.__name__:
+        # Only if it's a Browse(Filterable) type page
+        if instanceOfBrowseOrFilterablePages(sibling.specific):
             sibling = page if page.id == sibling.id else sibling
             item = {
                 'title': sibling.title,

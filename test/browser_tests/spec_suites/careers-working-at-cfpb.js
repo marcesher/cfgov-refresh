@@ -34,11 +34,12 @@ describe( 'The Working At CFPB Page', function() {
 
   it( 'should have a career info section', function() {
     var infoSectionTitles =
-    [ 'Current Openings', 'Job Application Process',
-    'Students & Recent Graduates' ];
+    [ 'Current openings', 'Job application process',
+    'Students & recent graduates' ];
     var infoSectionLinks =
-    [ '/careers/current-openings/', '/careers/application-process/',
-    '/careers/students-and-graduates/' ];
+    [ '/about-us/careers/current-openings/',
+      '/about-us/careers/application-process/',
+      '/about-us/careers/students-and-graduates/' ];
 
     expect( page.infoSectionTitles.getText() )
     .toEqual( infoSectionTitles );

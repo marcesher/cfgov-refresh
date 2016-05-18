@@ -43,24 +43,24 @@
 {% import 'macros/time.html' as time %}
 {% from 'macros/util/format/url.html' import location_image_url as location_image_url %}
 
-{% macro render(post, controls, form_id=0, url='') %}
-    {% set type = controls.page_type or '' %}
+{% macro render(post, controls, form_id=0, url='', post_date_description='') %}
+    {% set date_desc = controls.post_date_description  or post_date_description or 'Published' %}
+    {% set cat_controls = controls.categories %}
+    {% set show_categories = cat_controls.show_preview_categories if cat_controls is defined else true %}
     {% set page_url = url or get_protected_url(page) %}
     {% set post_url = get_protected_url(post) %}
     <article class="o-post-preview">
         <div class="meta-header">
             <span class="date meta-header_right">
-                {{ controls.post_date_description if controls.post_date_description else 'Published'}} {{ time.render(post.date_published, {'date':true}) }}
+                {{ date_desc }} {{ time.render(post.date_published, {'date':true}) }}
             </span>
             {# Newsroom Blog category logic #}
-            {% if controls.show_preview_categories %}
-                {% if 'newsroom' in type %}
-                    {% if is_blog(post) %}
-                        {{ category_slug.render('blog',
-                                page_url,
-                                'post_slug meta-header_left',
-                                false, form_id) }}
-                    {% endif %}
+            {% if show_categories %}
+                {% if cat_controls and 'newsroom' in cat_controls.page_type and is_blog(post) %}
+                    {{ category_slug.render('blog',
+                            page_url,
+                            'post_slug meta-header_left',
+                            false, form_id) }}
                 {% else %}
                     {% for cat in post.categories.all() %}
                         {% if loop.index > 1 %}
@@ -142,7 +142,7 @@
             {% endif %}
             {% if post.preview_description %}
                 <div class="o-post-preview_description">
-                    {{ post.preview_description | safe }}
+                    {{ parse_links(post.preview_description) | safe }}
                 </div>
             {% endif %}
             <div class="post_meta">

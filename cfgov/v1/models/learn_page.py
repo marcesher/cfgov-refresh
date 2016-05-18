@@ -1,7 +1,8 @@
-from datetime import datetime
+from datetime import date
 from localflavor.us.models import USStateField
 
 from django.db import models
+from django.core.validators import RegexValidator
 from wagtail.wagtailcore import blocks
 from wagtail.wagtailcore.models import Page
 from wagtail.wagtaildocs.edit_handlers import DocumentChooserPanel
@@ -10,13 +11,13 @@ from wagtail.wagtailadmin.edit_handlers import TabbedInterface, ObjectList, \
     StreamFieldPanel, FieldPanel, FieldRowPanel, MultiFieldPanel, InlinePanel
 from wagtail.wagtailimages.edit_handlers import ImageChooserPanel
 
-from . import molecules
-from . import organisms
+from ..atomic_elements import molecules, organisms
 from .base import CFGOVPage, CFGOVPageManager
 
 
 class AbstractFilterPage(CFGOVPage):
     header = StreamField([
+        ('article_subheader', blocks.RichTextBlock(icon='form')),
         ('text_introduction', molecules.TextIntroduction()),
         ('item_introduction', organisms.ItemIntroduction()),
     ], blank=True)
@@ -32,7 +33,7 @@ class AbstractFilterPage(CFGOVPage):
         on_delete=models.SET_NULL,
         related_name='+'
     )
-    date_published = models.DateField(default=datetime.now)
+    date_published = models.DateField(default=date.today)
     date_filed = models.DateField(null=True, blank=True)
     comments_close_by = models.DateField(null=True, blank=True)
 
@@ -150,7 +151,10 @@ class EventPage(AbstractFilterPage):
         related_name='+'
     )
     flickr_url = models.URLField("Flickr URL", blank=True)
-    youtube_url = models.URLField("Youtube URL", blank=True)
+    youtube_url = models.URLField("Youtube URL", blank=True,
+    help_text="Format: https://www.youtube.com/embed/video_id. It can be obtained by clicking on Share > Embed on Youtube.",
+    validators=[ RegexValidator(regex='^https?:\/\/www\.youtube\.com\/embed\/.*$')])
+
     live_stream_availability = models.BooleanField("Streaming?", default=False,
                                                    blank=True)
     live_stream_url = models.URLField("URL", blank=True)

@@ -2,17 +2,20 @@
 
 var gulp = require( 'gulp' );
 var $ = require( 'gulp-load-plugins' )();
-var sitespeedio = require( 'gulp-sitespeedio' );
 var childProcess = require( 'child_process' );
 var spawn = childProcess.spawn;
 var config = require( '../config' ).test;
 var fsHelper = require( '../utils/fsHelper' );
 var minimist = require( 'minimist' );
 
-gulp.task( 'test:unit:scripts', function( cb ) {
+/**
+ * Run Mocha JavaScript unit tests.
+ * @param {Function} cb - Callback function to call on completion.
+ */
+function testUnitScripts( cb ) {
   gulp.src( config.src )
     .pipe( $.istanbul( {
-      includeUntested: true
+      includeUntested: false
     } ) )
     .pipe( $.istanbul.hookRequire() )
     .on( 'finish', function() {
@@ -32,29 +35,33 @@ gulp.task( 'test:unit:scripts', function( cb ) {
 
         .on( 'end', cb );
     } );
-} );
+}
 
-gulp.task( 'test:unit:macro', function( cb ) {
+/**
+ * Run jinja macro unit tests.
+ */
+function testUnitMacro() {
   spawn(
     'python',
     [ config.tests + '/macro_tests/test_macros.py' ],
     { stdio: 'inherit' }
-  )
-    .once( 'close', function() {
-      $.util.log( 'Macro unit tests done!' );
-    } );
-} );
+  ).once( 'close', function() {
+    $.util.log( 'Macro unit tests done!' );
+  } );
+}
 
-gulp.task( 'test:unit:server', function() {
+/**
+ * Run tox unit tests.
+ */
+function testUnitServer() {
   spawn(
     'tox',
     [ 'cfgov/core/tests' ],
     { stdio: 'inherit' }
-  )
-    .once( 'close', function() {
-      $.util.log( 'Tox tests done!' );
-    } );
-} );
+  ).once( 'close', function() {
+    $.util.log( 'Tox tests done!' );
+  } );
+}
 
 /**
  * Add a command-line flag to a list of Protractor parameters, if present.
@@ -106,64 +113,6 @@ function _getProtractorParams() {
 }
 
 /**
- * Processes environment variables to find homepage URL
- * where the site is running.
- * @returns {string} URL of website homepage.
- */
-function _getSiteUrl() {
-  var host = process.env.HTTP_HOST || 'localhost'; // eslint-disable-line no-process-env, no-inline-comments, max-len
-  var port = process.env.HTTP_PORT || '8000'; // eslint-disable-line no-process-env, no-inline-comments, max-len
-  return 'http://' + host + ':' + port;
-}
-
-gulp.task( 'test:perf', sitespeedio( {
-  url: _getSiteUrl(),
-  depth: 1,
-  html: true,
-  resultBaseDir: config.tests + '/perf_test_results/',
-  showFailedOnly: true,
-  skipTest: 'jsnumreq,' +
-            'ycompress,' +
-            'ydns,' +
-            'yfavicon,' +
-            'thirdpartyasyncjs,' +
-            'syncjsinhead,' +
-            'avoidfont,' +
-            'expiresmod,' +
-            'longexpirehead,' +
-            'textcontent,' +
-            'thirdpartyversions,' +
-            'ycdn,' +
-            'connectionclose,' +
-            'ycookiefree,' +
-            'yexpressions,' +
-            'inlinecsswhenfewrequest,' +
-            'nodnslookupswhenfewrequests',
-  budget: {
-    rules: {
-      'default': 90
-    }
-  }
-} ) );
-
-gulp.task( 'test:acceptance:browser', function() {
-  spawn(
-    fsHelper.getBinary( 'protractor' ),
-    _getProtractorParams(),
-    { stdio: 'inherit' }
-  )
-    .once( 'close', function() {
-      $.util.log( 'Protractor tests done!' );
-    } );
-} );
-
-gulp.task( 'test:acceptance',
-  [
-    'test:acceptance:browser'
-  ]
-);
-
-/**
  * Processes command-line and environment variables
  * for passing to the wcag executable.
  * The URL host, port, and AChecker web API ID come from
@@ -196,35 +145,100 @@ function _parsePath( urlPath ) {
   return urlPath;
 }
 
-gulp.task( 'test:a11y', function() {
+/**
+ * Run WCAG accessibility tests.
+ */
+function testA11y() {
   spawn(
     fsHelper.getBinary( 'wcag', '.bin' ),
     _getWCAGParams(),
     { stdio: 'inherit' }
-  )
-    .once( 'close', function() {
-      $.util.log( 'WCAG tests done!' );
-    } );
-} );
+  ).once( 'close', function() {
+    $.util.log( 'WCAG tests done!' );
+  } );
+}
 
-// This task will only run on Travis
-gulp.task( 'test:coveralls', function() {
+/**
+ * Test whether we need to load the initial data for wagtail tests.
+ * @returns {boolean} Returns true if no specs arg is passed or the
+ *                    specs arg includes wagtail
+ */
+function _shouldInstallInitialData() {
+  var commandLineParams = minimist( process.argv.slice( 2 ) );
+  var specs = commandLineParams.specs;
+
+  if ( specs ) {
+    return specs.match( 'wagtail' );
+  }
+
+  return true;
+}
+
+/**
+ * Spawn the appropriate acceptance tests.
+ */
+function _spawnProtractor() {
+  spawn(
+    fsHelper.getBinary( 'protractor' ),
+    _getProtractorParams(),
+    { stdio: 'inherit' }
+  ).once( 'close', function() {
+    $.util.log( 'Protractor tests done!' );
+  } );
+}
+
+/**
+ * Run the protractor acceptance tests.
+ */
+function testAcceptanceBrowser() {
+  if ( _shouldInstallInitialData() ) {
+    spawn(
+    './initial-test-data.sh', [], { stdio: 'inherit' }
+  ).once( 'close', function() {
+    $.util.log( 'Loaded Wagtail database data!' );
+    _spawnProtractor();
+  } );
+  } else {
+    _spawnProtractor();
+  }
+}
+
+/**
+ * Run coveralls reports on Travis.
+ */
+function testCoveralls() {
   gulp.src( config.tests + '/unit_test_coverage/lcov.info' )
     .pipe( $.coveralls() );
-} );
+}
 
-gulp.task( 'test',
+// This task will only run on Travis
+gulp.task( 'test:coveralls', testCoveralls );
+
+gulp.task( 'test:a11y', testA11y );
+
+gulp.task( 'test:acceptance:browser', testAcceptanceBrowser );
+gulp.task( 'test:acceptance',
   [
-    'lint',
-    'test:unit',
-    'test:acceptance'
+    'test:acceptance:browser'
   ]
 );
+
+gulp.task( 'test:unit:scripts', testUnitScripts );
+gulp.task( 'test:unit:macro', testUnitMacro );
+gulp.task( 'test:unit:server', testUnitServer );
 
 gulp.task( 'test:unit',
   [
     'test:unit:scripts',
     'test:unit:macro',
     'test:unit:server'
+  ]
+);
+
+gulp.task( 'test',
+  [
+    'lint',
+    'test:unit',
+    'test:acceptance'
   ]
 );

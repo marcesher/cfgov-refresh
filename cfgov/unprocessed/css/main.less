@@ -20,10 +20,10 @@
 @import (less) 'cf-typography/src/cf-typography.less';
 @import (less) 'cf-pagination/src/cf-pagination.less';
 @import (less) 'cf-expandables/src/cf-expandables.less';
+
 // Remove CF Tables from the bower manifest when it's released under the
 // main capital-framework repo
 @import (less) 'cf-tables/src/cf-tables.less';
-
 
 // The Capital Framework (CF) brand color palette.
 @import (less) "brand-palette.less";
@@ -32,7 +32,40 @@
 @import (less) "cf-theme-overrides.less";
 
 // Enhancements that are on a migration path to being added to CF.
-@import (less) "cf-enhancements.less";
+// CF Core
+@import (less) "enhancements/vars.less";
+@import (less) "enhancements/media-queries.less";
+@import (less) "enhancements/utilities.less";
+@import (less) "enhancements/base.less";
+
+// Typography
+@import (less) "enhancements/typography.less";
+
+// CF Buttons
+@import (less) "enhancements/buttons.less";
+
+// CF Icons
+@import (less) "enhancements/icons.less";
+
+// CF Grid
+@import (less) "enhancements/grid.less";
+
+// CF Layout
+@import (less) "enhancements/layout.less";
+
+// CF Forms
+@import (less) "enhancements/forms.less";
+
+// CF Expandables
+@import (less) "enhancements/expandables.less";
+
+// CF Tables
+@import (less) "enhancements/tables.less";
+
+// CF ???
+@import (less) "enhancements/code.less";
+@import (less) "enhancements/print.less";
+
 
 /* Base patterns
    ========================================================================== */
@@ -72,6 +105,7 @@
 @import (less) "molecules/expandable.less";
 @import (less) "molecules/featured-menu-content.less";
 @import (less) "molecules/form-field-with-button.less";
+@import (less) "molecules/full-width-media.less";
 @import (less) "molecules/full-width-text.less";
 @import (less) "molecules/global-banner.less";
 @import (less) "molecules/global-eyebrow.less";
@@ -87,6 +121,7 @@
 @import (less) "molecules/related-posts.less";
 @import (less) "molecules/social-media.less";
 
+
 /* Organism pieces
    ========================================================================== */
 
@@ -94,6 +129,7 @@
 @import (less) "organisms/expandable-group.less";
 @import (less) "organisms/email-signup.less";
 @import (less) "organisms/filterable-list-controls.less";
+@import (less) "organisms/footer.less";
 @import (less) "organisms/form.less";
 @import (less) "organisms/full-width-text-group.less";
 @import (less) "organisms/header.less";
@@ -106,12 +142,13 @@
 @import (less) "organisms/sidebar-contact-info.less";
 @import (less) "organisms/well.less";
 @import (less) "organisms/secondary-navigation.less";
+@import (less) "organisms/reg-comment.less";
+
 
 /* Template pieces
    ========================================================================== */
 
 @import (less) "skip-nav.less";
-@import (less) "footer.less";
 @import (less) "breadcrumbs.less";
 @import (less) "mobile-carousel.less";
 @import (less) "share.less";
@@ -127,7 +164,6 @@
 @import (less) "pages/bureau.less";
 @import (less) "pages/bureau-structure.less";
 @import (less) "pages/careers.less";
-@import (less) "pages/history.less";
 @import (less) "pages/home.less";
 @import (less) "pages/press-resources.less";
 

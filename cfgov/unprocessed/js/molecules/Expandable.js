@@ -4,6 +4,7 @@
 var atomicHelpers = require( '../modules/util/atomic-helpers' );
 var breakpointState = require( '../modules/util/breakpoint-state' );
 var EventObserver = require( '../modules/util/EventObserver' );
+var fnBind = require( '../modules/util/fn-bind' ).fnBind;
 
 /**
  * Expandable
@@ -36,19 +37,23 @@ function Expandable( element ) { // eslint-disable-line max-statements, inline-c
 
   var _state = COLLAPSED;
   var _transitionEndEvent = _getTransitionEndEvent( _content );
+  var _transitionPrefix = _getTransitionPrefix( _transitionEndEvent );
   var _contentHeight;
 
   // TODO: Replace function of _that with Function.prototype.bind.
   var _that = this;
-  var _collapseBinded = collapse.bind( this );
-  var _expandBinded = expand.bind( this );
+  var _collapseBinded = fnBind( collapse, this );
+  var _expandBinded = fnBind( expand, this );
 
   /**
    * @param {number} state
    *   Allows passing of EXPANDED flag to set expanded state.
-   * @returns {Object} The Expandable instance.
+   * @returns {Expandable|undefined} An instance,
+   *   or undefined if it was already initialized.
    */
   function init( state ) {
+    if ( !atomicHelpers.setInitFlag( _dom ) ) { var inst; return inst; }
+
     _calcHeight();
     // Even if expanded is set, don't expand if in mobile window size.
     if ( !_isInMobile() &&
@@ -168,7 +173,7 @@ function Expandable( element ) { // eslint-disable-line max-statements, inline-c
   function _transitionHeight( callback, duration ) {
     if ( _transitionEndEvent ) {
       _content.addEventListener( _transitionEndEvent, callback );
-      _content.style.transition = 'height ' + duration + 's ease-out';
+      _content.style[_transitionPrefix] = 'height ' + duration + 's ease-out';
     } else {
       // TODO: Remove callback-return ESLint ignore
       callback(); // eslint-disable-line callback-return, inline-comments, max-len
@@ -233,11 +238,15 @@ function Expandable( element ) { // eslint-disable-line max-statements, inline-c
 
   /**
    * Handle a resize of the window.
+   * TODO: Throttle this call per
+   * https://developer.mozilla.org/en-US/docs/Web/Events/resize.
    */
   function _resizeHandler() {
-    _refreshHeight();
-    if ( _isInMobile() ) {
-      _collapseBinded();
+    if( _contentAnimated.offsetHeight !== _contentHeight ) {
+      _refreshHeight();
+      if ( _isInMobile() ) {
+        _collapseBinded();
+      }
     }
   }
 
@@ -363,6 +372,22 @@ function _getTransitionEndEvent( elm ) {
     }
   }
   return transition;
+}
+
+/**
+ * @param {string} transitionEnd The browser-prefixed transition end event.
+ * @returns {string} The browser-prefixed transition event.
+ */
+function _getTransitionPrefix( transitionEnd ) {
+  var TRANSITION_PREFIXES = {
+    webkitTransitionEnd: '-webkit-transition',
+    MozTransition:       '-moz-transition',
+    OTransition:         '-o-transition',
+    transitionend:       'transition'
+  };
+
+  return TRANSITION_PREFIXES[transitionEnd] ||
+         TRANSITION_PREFIXES.transitionend;
 }
 
 /**

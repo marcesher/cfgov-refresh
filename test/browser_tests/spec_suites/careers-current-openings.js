@@ -26,9 +26,10 @@ describe( 'The Current Openings Page', function() {
 
   it( 'should have a career info section', function() {
     var infoSectionTitles =
-    [ 'Job Application Process', 'Working at the CFPB' ];
+    [ 'Job application process', 'Working at the CFPB' ];
     var infoSectionLinks =
-    [ '/careers/application-process/', '/careers/working-at-cfpb/' ];
+    [ '/about-us/careers/application-process/',
+      '/about-us/careers/working-at-cfpb/' ];
 
     expect( page.infoSectionTitles.getText() )
     .toEqual( infoSectionTitles );

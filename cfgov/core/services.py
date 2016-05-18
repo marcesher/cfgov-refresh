@@ -14,6 +14,7 @@ from v1.forms import CalenderPDFFilterForm
 from django.core.urlresolvers import reverse
 from django.contrib import messages
 from django.http import HttpResponseRedirect
+from django.conf import settings
 
 class PDFReactorNotConfigured(Exception):
     pass
@@ -24,7 +25,7 @@ if six.PY2:
         sys.path.append(os.environ.get('PDFREACTOR_LIB'))
         from PDFreactor import *
     except:
-        pass
+       PDFreactor = None
 
 class PDFGeneratorView(View):
     render_url = None
@@ -57,13 +58,16 @@ class PDFGeneratorView(View):
         if self.license is None:
             raise Exception("PDFGeneratorView requires a license")
 
+        if settings.DEBUG and PDFreactor is None:
+            return HttpResponse("PDF Reactor is not configured, can not render %s" % self.get_render_url())
+
         try:
             pdf_reactor = PDFreactor()
         except:
             raise PDFReactorNotConfigured('PDFreactor python library path needs to be configured.')
 
         pdf_reactor.setLogLevel(PDFreactor.LOG_LEVEL_WARN)
-        pdf_reactor.setLicenseKey(self.license)
+        pdf_reactor.setLicenseKey(str(self.license))
         pdf_reactor.setAuthor('CFPB')
         pdf_reactor.setAddTags(True)
         pdf_reactor.setAddBookmarks(True)
@@ -91,8 +95,8 @@ class PDFGeneratorView(View):
     def post(self, request):
         index = request.POST.get('form-id')
         filter_calendar = index + 'filter_calendar'
-        filter_range_date_gte = index + '-filter_range-date-gte'
-        filter_range_date_lte = index + '-filter_range-date-lte'
+        filter_range_date_gte = index + '-filter_range_date_gte'
+        filter_range_date_lte = index + '-filter_range_date_lte'
         form = CalenderPDFFilterForm({
             'filter_calendar': request.POST.get(filter_calendar),
             'filter_range_date_gte': request.POST.get(filter_range_date_gte),

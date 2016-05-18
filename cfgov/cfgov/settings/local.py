@@ -3,15 +3,42 @@ from .base import *
 DEBUG = True
 INSTALLED_APPS += ('wagtail.contrib.wagtailstyleguide',)
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.environ.get('MYSQL_NAME'),
-        'USER': os.environ.get('MYSQL_USER'),
-        'PASSWORD': os.environ.get('MYSQL_PW', ''),
-        'HOST': os.environ.get('MYSQL_HOST', ''),  # empty string == localhost
-        'PORT': os.environ.get('MYSQL_PORT', ''),  # empty string == default
-    },
-}
+if os.environ.get('DATABASE_ROUTING', False):
+    DATABASE_ROUTERS = ['v1.db_router.CFGOVRouter', 'v1.db_router.LegacyRouter']
+
+    DATABASES = {
+        'default': {
+            'ENGINE': MYSQL_ENGINE,
+            'NAME': os.environ.get('MYSQL_NAME', ''),
+            'USER': os.environ.get('MYSQL_USER', ''),
+            'PASSWORD': os.environ.get('MYSQL_PW', ''),
+            'HOST': os.environ.get('MYSQL_HOST', ''),
+            'PORT': os.environ.get('MYSQL_PORT', ''),
+            'OPTIONS': {'init_command': os.environ.get('STORAGE_ENGINE', 'SET storage_engine=MYISAM') },
+        },
+        'legacy': {
+            'ENGINE': MYSQL_ENGINE,
+            'NAME': os.environ.get('LEGACY_MYSQL_NAME', ''),
+            'USER': os.environ.get('LEGACY_MYSQL_USER', ''),
+            'PASSWORD': os.environ.get('LEGACY_MYSQL_PW', ''),
+            'HOST': os.environ.get('LEGACY_MYSQL_HOST', ''),
+            'PORT': os.environ.get('LEGACY_MYSQL_PORT', ''),
+            'OPTIONS': {'init_command': os.environ.get('STORAGE_ENGINE', 'SET storage_engine=MYISAM') },
+        },
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': MYSQL_ENGINE,
+            'NAME': os.environ.get('MYSQL_NAME', ''),
+            'USER': os.environ.get('MYSQL_USER', ''),
+            'PASSWORD': os.environ.get('MYSQL_PW', ''),
+            'HOST': os.environ.get('MYSQL_HOST', ''),
+            'PORT': os.environ.get('MYSQL_PORT', ''),
+            'OPTIONS': {'init_command': os.environ.get('STORAGE_ENGINE', 'SET storage_engine=MYISAM') },
+        },
+    }
 
 STATIC_ROOT = REPOSITORY_ROOT.child('collectstatic')
+
+ALLOW_ADMIN_URL = DEBUG or os.environ.get('ALLOW_ADMIN_URL', False)

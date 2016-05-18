@@ -1,7 +1,4 @@
 from .base import *
-from .atoms import *
-from .molecules import *
-from .organisms import *
 from ..util.ref import *
 
 from .snippets import *
@@ -12,6 +9,8 @@ from .browse_filterable_page import *
 from .learn_page import *
 from .home_page import *
 from .sublanding_filterable_page import *
+from .blog_page import *
+from .newsroom_page import *
 
 import os
 from django.conf import settings

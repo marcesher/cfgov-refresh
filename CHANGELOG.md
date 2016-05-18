@@ -16,15 +16,209 @@ Given the `MAJOR.MINOR.PATCH` pattern, here is how we decide to increment:
 ## Unreleased
 
 ### Added
+- `parse_links` calls on rich text fields on the rest of the fields
+- Add unit tests for filterable list functions
+- Added browser tests for the multiselect.
+
+### Changes
+- filterable_context.py -> filterable_list.py
+- Refactored the filterable list logic for modularity and testability
+
+### Removed
+
+### Fixed
+
+- Removed wrapping `<p>` tag on a form field's description field output,
+  since it's a rich text field that provides its own markup.
+- Fixed issue with single careers layout.
+
+## 3.0.0-3.3.15 - 2016-05-16
+
+### Added
+
+### Changes
+
+- Updated Capital Framework to latest.
+- Updated stats on homepage to match CCDB landing.
+
+### Removed
+
+- Removed acting Dept Directors from Leadership calendar filter.
+- Removed obsolete module kbclick.js.
+
+### Fixed
+
+- Fixed a validation bug in the Multiselect.
+
+
+## 3.0.0-3.3.14 - 2016-05-11
+
+### Added
+
+### Changes
+
+- Fixed Password Reset Flow
+- Fixed saving of Legacy Blog Pages
+
+### Removed
+
+### Fixed
+
+
+## 3.0.0-3.3.13 - 2016-05-11
+
+### Added
+- Added print styles to hide major site features that aren't print applicable.
+- Added base pagination browser tests.
+- Image Text 50 50 Organism to Blog Page
+- Moved django-commons into the project
+
+### Changed
+
+- Updated static version of the org chart.
+
+### Removed
+
+### Fixed
+
+- Fixed an issue where the header only had 15px of spacing instead of 30.
+- Fixed the spacing around info-units groups and breadcrumbs.
+- Fixed duplicate Protractor tests.
+- Fixed issue with page jump form.
+
+## 3.0.0-3.3.12 - 2016-05-05
+
+### Added
+- Additional page template tests
+- RegComment organism: New option to use a generic link for commenting at
+  Regulations.gov or going directly to the specified document's comment form.
+- Additional molecule tests
+
+### Changed
+- Updated event times to show EDT.
+
+
+## 3.0.0-3.3.11 - 2016-05-03
+
+### Added
+- Front end: Added No Fear Act link to footer.
+
+### Changed
+- RSS Feeds for all Filterable Pages
+- Animated Gif Support
+- Ensure files uploaded as .PDFs get a download icon
+- Handle govdelivery job subscriptions via a Django form
+- Refactored HousingCounselor form to use USZipCodeField() in order to not strip leading zeros
+
+
+## 3.3.0-3.3.10 - 2016-04-28
+
+### Fixed
+- Typo in reg comment form
+
+
+## 3.0.0-3.3.9 - 2016-04-28
+
+### Added
+
+- Added tests for the public methods in the Multiselect
+- API client for Regulations.gov Comment API
+- reg-comment organism and Wagtail module for adding it to a page
+
+### Changed
+
+- Make further reading and list filter results distinct
+
+### Removed
+
+### Fixed
+
+
+## 3.0.0-3.3.3 - 2016-04-21
+
+### Added
+
+- Added unit test specs for all files to test (excluding config, polyfills and jQuery plugins).
+- Added no-js and js classes to the on-demand header.
+- Added link to Livestream FAQ.
+- Flag for database routing for content.consumerfinance.gov.
+- Added the Digital Gov search script.
+
+### Changed
+
+- Hid overflow-x at mobile sizes on document body.
+- Added `halt()` and `clearTransitions()` methods to transition behaviors.
+- Updated the content on doing-business-with-us and doing-business-with-us/upcoming-procurement-needs based on EA feedback.
+
+### Removed
+
+- Removed resolved TODOs and old macros replaced by atomic components.
+
+### Fixed
+
+- Fixed an issue where the multiselect couldn't be closed.
+- Fixed the browser tests for the recent change to wagtail pages.
+- Fixed the mobile menu for on-demand django pages.
+- Fixed disappearing search close button when swapping device orientation.
+
+
+## 3.0.0-3.3.2 - 2016-04-11
+
+### Added
+
+- Adds a max-selections checker to the Multiselect.
+- Remove inline CSS when running sheer_index.
+- Abstracted dom events for easier reuse throughout the project.
+- Added npm shrinkwrap and snyk dependency monitoring
+- Tests `share_the_page` wagtail hook and associated functions
+
+### Changed
+
+- Updated Global Search to set search trigger to invisible,
+  since hidden is overridden.
+- Defaulted Related posts slug title to 'Further Reading' and made it a field in wagtail.
+- Enabled gov delivery subscriptions to work on wagtail pages
+- randomized formfieldWithButton Id and included name field for post requests.
+- Update Director's Bio and Deputy Director's Bio
+- Update the leadership calendar copy and links
+- Updated the placeholders in wagtail filterable list controls.
+- Updated footer to atomic footer.
+- Pinned our NPM dependencies.
+- Updated Capital Framework to 3.3.0
+- Changed U.S. flag image paths to be root-relative
+- Refactored wagtail hook `share_the_page`
+
+### Removed
+
+- Removed `gulp beep` task for optional alerting when the build process
+  has completed.
+- Remove Disqus comments from blog pages
+- Removed sitespeed.io gulp task
+
+### Fixed
+
+- Fixed paths to templates that were moved in to /about-us.
+- Update biographies for director bios.
+- Fixed issue with bad values in the multiselect.
+- Fixed the missing logon on IE 8.
+- Fixed an issue w/ the spacing on the hero.
+- Fixed issue where missing images were breaking the hero layout
+
+## 3.0.0-3.2.1 - 2016-03-21
+
+### Added
 
 - Added Featured Menu Content Molecule.
 - Added Global Banner Molecule.
 - Added Digital Privacy Policy to the footer.
 - Added tests for dom-traverse functions
+- Added default values for the View more text and URL.
+- Dynamically create the View more URL if there are tags
 - Add an EXTERNAL_ICON_PATTERN to handle icons and links separately
 - Added specific Blog/Newsroom Categories to Related Post options
 - base.html now checks for page (seo) title if exists
 - Added a space before the external icon
+- Added validation for Youtube URLs.
 
 ### Changed
 
@@ -38,10 +232,15 @@ Given the `MAJOR.MINOR.PATCH` pattern, here is how we decide to increment:
 - Updated the Hero Macro for the new overlay hero styles.
 - Updated article template to render all categories
 - Append bureau title on every template rendered
+- Changing the times we receive for calendar events to match our db.
+- Updated `external-site/index.html` to use the full params of whatever's being passed in.
+- Changed copy on `/the-bureau/`
+- Updated titles and names in the Bureau Structure page
 
 ### Removed
 
 - Removed Georgia usage for the time being.
+- Removed ICS download placeholder from events.
 
 ### Fixed
 
@@ -789,6 +988,8 @@ Given the `MAJOR.MINOR.PATCH` pattern, here is how we decide to increment:
 ## 3.0.0-1.2.2 - 2015-07-02
 
 ### Added
+
+- Add reverse flag back into post preview snapshot for most recent pages
 
 ### Changed
 

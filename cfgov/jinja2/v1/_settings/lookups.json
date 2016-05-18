@@ -1,17 +1,7 @@
 {
   "career": {
-    "url":       "/careers/current-openings/<id>/",
+    "url":       "/about-us/careers/current-openings/<id>/",
     "type":      "career",
-    "permalink": true
-  },
-  "sub_page": {
-    "url":       "/sub-pages/<id>/",
-    "type":      "sub_page",
-    "permalink": true
-  },
-  "office": {
-    "url":       "/offices/<id>/",
-    "type":      "office",
     "permalink": true
   },
   "newsroom": {

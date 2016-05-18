@@ -2,7 +2,9 @@
 
 // Required modules.
 var EventObserver = require( '../modules/util/EventObserver' );
+var fnBind = require( '../modules/util/fn-bind' ).fnBind;
 var MoveTransition = require( '../modules/transition/MoveTransition' );
+var treeTraversal = require( '../modules/util/tree-traversal' );
 
 /**
  * MegaMenuDesktop
@@ -17,12 +19,14 @@ function MegaMenuDesktop( menus ) {
 
   // DOM references.
   var _bodyDom = document.body;
+  var _firstLevelDom;
 
   // Binded functions.
-  var _handleTriggerClickBinded = _handleTriggerClick.bind( this );
-  var _handleTriggerOverBinded = _handleTriggerOver.bind( this );
-  var _handleExpandBeginBinded = _handleExpandBegin.bind( this );
-  var _handleCollapseEndBinded = _handleCollapseEnd.bind( this );
+  var _handleTriggerClickBinded = fnBind( _handleTriggerClick, this );
+  var _handleTriggerOverBinded = fnBind( _handleTriggerOver, this );
+  var _handleTriggerOutBinded = fnBind( _handleTriggerOut, this );
+  var _handleExpandBeginBinded = fnBind( _handleExpandBegin, this );
+  var _handleCollapseEndBinded = fnBind( _handleCollapseEnd, this );
 
   // Tree model.
   var _menus = menus;
@@ -33,10 +37,18 @@ function MegaMenuDesktop( menus ) {
   // Whether this instance's behaviors are suspended or not.
   var _suspended = true;
 
+  // Timeout for delayed events.
+  var _showDelay;
+
   /**
    * @returns {MegaMenuDesktop} An instance.
    */
   function init() {
+    // Get the immediate parent of the 1st level menu links.
+    // We'll use this later to check if we're still over the links,
+    // on mouse move.
+    var firstLevelMenus = _menus.getAllAtLevel( 1 );
+    _firstLevelDom = firstLevelMenus[0].data.getDom().container.parentNode;
 
     return this;
   }
@@ -46,17 +58,58 @@ function MegaMenuDesktop( menus ) {
    * @param {Event} event - A FlyoutMenu event.
    */
   function handleEvent( event ) {
-    if ( !_suspended ) {
-      if ( event.type === 'triggerClick' ) {
-        _handleTriggerClickBinded( event );
-      } else if ( event.type === 'triggerOver' ) {
-        _handleTriggerOverBinded( event );
-      } else if ( event.type === 'expandBegin' ) {
-        _handleExpandBeginBinded( event );
-      } else if ( event.type === 'collapseEnd' ) {
-        _handleCollapseEndBinded( event );
+    if ( _suspended ) { return; }
+    var eventMap = {
+      triggerClick: _handleTriggerClickBinded,
+      triggerOver:  _handleTriggerOverBinded,
+      triggerOut:   _handleTriggerOutBinded,
+      expandBegin:  _handleExpandBeginBinded,
+      collapseEnd:  _handleCollapseEndBinded
+    };
+
+    var currHandler = eventMap[event.type];
+    if ( currHandler ) {
+      var delay = _calcEventDelay( event.type );
+      if ( delay > 0 ) {
+        _delayedEvent( currHandler, event, delay );
+      } else {
+        currHandler( event );
       }
     }
+  }
+
+  /**
+   * @param {string} type - The type of event to check.
+   * @returns {number} The amount to delay in milliseconds,
+   *   length is determined based on the event type and
+   *   whether the menu is active or not.
+   */
+  function _calcEventDelay( type ) {
+    var delay = 0;
+    if ( type === 'triggerClick' ) {
+      window.clearTimeout( _showDelay );
+    } else if ( type === 'triggerOver' ) {
+      if ( _activeMenu === null ) {
+        delay = 150;
+      } else {
+        delay = 50;
+      }
+    }
+
+    return delay;
+  }
+
+  /**
+   * Delay the broadcasting of an event by supplied delay.
+   * @param {Function} currHandler - Event handler.
+   * @param {Event} event - A FlyoutMenu event.
+   * @param {number} delay - Delay in milliseconds.
+   */
+  function _delayedEvent( currHandler, event, delay ) {
+    window.clearTimeout( _showDelay );
+    _showDelay = window.setTimeout( function() {
+      currHandler( event );
+    }, delay );
   }
 
   /**
@@ -66,29 +119,26 @@ function MegaMenuDesktop( menus ) {
   function _handleTriggerClick( event ) {
     this.dispatchEvent( 'triggerClick', { target: this } );
     var menu = event.target;
-    if ( !menu.isAnimating() ) {
-      if ( _activeMenu === null ) {
-        // A menu is opened.
-        _activeMenu = menu;
-        _activeMenu.getTransition().animateOn();
-        // TODO: Investigate whether mouseout event may be able to be used
-        //       instead of mousemove.
-        _bodyDom.addEventListener( 'mousemove', _handleMove );
-        _bodyDom.addEventListener( 'mouseleave', _handleMove );
-      } else if ( _activeMenu === menu ) {
-        // A menu is closed.
-        _activeMenu.getTransition().animateOn();
-        _activeMenu = null;
-        _bodyDom.removeEventListener( 'mousemove', _handleMove );
-        _bodyDom.removeEventListener( 'mouseleave', _handleMove );
-      } else {
-        // An open menu has switched to another menu.
-        _activeMenu.getTransition().animateOff();
-        _activeMenu.collapse();
-        _activeMenu = event.target;
-        _activeMenu.getTransition().animateOff();
-      }
-    }
+    if ( menu.isAnimating() ) { return; }
+    _updateMenuState( menu, event.type );
+  }
+
+  /**
+   * Event handler for when FlyoutMenu trigger is hovered over.
+   * @param {Event} event - A FlyoutMenu event.
+   */
+  function _handleTriggerOver( event ) {
+    this.dispatchEvent( 'triggerOver', { target: this } );
+    _updateMenuState( event.target, event.type );
+  }
+
+  /**
+   * Event handler for when FlyoutMenu trigger is hovered out.
+   */
+  function _handleTriggerOut() {
+    this.dispatchEvent( 'triggerOut', { target: this } );
+    // Clear any queued events to show the menu.
+    window.clearTimeout( _showDelay );
   }
 
   /**
@@ -117,30 +167,49 @@ function MegaMenuDesktop( menus ) {
   }
 
   /**
-   * Event handler for when FlyoutMenu trigger is hovered over.
-   * @param {Event} event - A FlyoutMenu event.
-   */
-  function _handleTriggerOver( event ) {
-    this.dispatchEvent( 'triggerOver', { target: this } );
-    var menu = event.target;
-    var level = menu.getData().level;
-
-    // Only trigger a click when rolling over the level one
-    // menu items when in the desktop view.
-    if ( level === 1 && _activeMenu !== menu ) {
-      menu.getDom().trigger.click();
-    }
-  }
-
-  /**
    * Event handler for when mouse is hovering.
    * @param {MouseEvent} event - The hovering event.
    */
   function _handleMove( event ) {
-    var menu = event.target;
+    // If we've left the parent container of the current menu, close it.
+    if ( !_firstLevelDom.contains( event.target ) ) {
+      _updateMenuState( null, event.type );
+    }
+  }
 
-    if ( !_activeMenu.getDom().container.parentNode.contains( menu ) ) {
-      _activeMenu.getDom().trigger.click();
+  /**
+   * Cleanup state and set the currently active menu.
+   * @param {FlyoutMenu} menu - The menu currently being activated.
+   * @param {string} type - The event type that is calling this method.
+   */
+  function _updateMenuState( menu, type ) {
+    if ( menu === null || _activeMenu === menu ) {
+      // A menu is closed.
+      window.clearTimeout( _showDelay );
+      _activeMenu.getTransition().animateOn();
+      _activeMenu.collapse();
+      _activeMenu = null;
+      _bodyDom.removeEventListener( 'mousemove', _handleMove );
+      _bodyDom.removeEventListener( 'mouseleave', _handleMove );
+    } else if ( _activeMenu === null ) {
+      // A menu is opened.
+      _activeMenu = menu;
+      _activeMenu.getTransition().animateOn();
+      // Mousemove needed in addition to mouseout of the trigger
+      // in order to check if user has moved off the menu <ul> and not
+      // just the <li> list items.
+      _bodyDom.addEventListener( 'mousemove', _handleMove );
+      _bodyDom.addEventListener( 'mouseleave', _handleMove );
+      _activeMenu.expand();
+    } else {
+      // An open menu has switched to another menu.
+      _activeMenu.getTransition().animateOff();
+      _activeMenu.collapse();
+      _activeMenu = menu;
+      if ( type === 'triggerOver' ) {
+        _activeMenu.getTransition().animateOff();
+        _activeMenu.expand();
+      }
     }
   }
 
@@ -150,54 +219,7 @@ function MegaMenuDesktop( menus ) {
    */
   function resume() {
     if ( _suspended ) {
-      var level2 = _menus.getAllAtLevel( 1 );
-      var menu;
-      var contentDom;
-      var wrapperDom;
-      var wrapperSel = '.o-mega-menu_content-2-wrapper';
-      var transition;
-      for ( var i = 0, len = level2.length; i < len; i++ ) {
-        menu = level2[i].data;
-        contentDom = menu.getDom().content;
-        wrapperDom = contentDom.querySelector( wrapperSel );
-        transition = menu.getTransition();
-        // This checks if the transition has been removed by MegaMenuMobile.
-        if ( transition ) {
-          transition.setElement( wrapperDom );
-        } else {
-          transition = new MoveTransition( wrapperDom );
-        }
-        transition.moveUp();
-        // TODO: The only reason hiding is necessary is that the
-        //       drop-shadow of the menu extends below it border,
-        //       so it's still visible when the menu slides -100% out of view.
-        //       Investigate whether it would be better to have a u-move-up-1_1x
-        //       or similar class to move up -110%. Or whether the drop-shadow
-        //       could be included within the bounds of the menu.
-        menu.getDom().content.classList.add( 'u-invisible' );
-        menu.setExpandTransition( transition, transition.moveToOrigin );
-        menu.setCollapseTransition( transition, transition.moveUp );
-
-        // TODO: Investigate whether deferred collapse has another solution.
-        //       This check is necessary since a call to an already collapsed
-        //       menu will set a deferred collapse that will be called
-        //       on expandEnd next time the flyout is expanded.
-        //       The deferred collapse is used in cases where the
-        //       user clicks the flyout menu while it is animating open,
-        //       so that it appears like they can collapse it, even when
-        //       clicking during the expand animation.
-        if ( menu.isExpanded() ) {
-          menu.collapse();
-        }
-      }
-
-      // TODO: Combine this loop with the above
-      //       into a Breadth-First Search iteration.
-      var level3 = _menus.getAllAtLevel( 2 );
-      for ( var i2 = 0, len2 = level3.length; i2 < len2; i2++ ) {
-        level3[i2].data.suspend();
-      }
-
+      treeTraversal.bfs( _menus.getRoot(), _handleResumeTraversal );
       _suspended = false;
     }
 
@@ -210,31 +232,99 @@ function MegaMenuDesktop( menus ) {
    */
   function suspend() {
     if ( !_suspended ) {
-      var level2 = _menus.getAllAtLevel( 1 );
-      var menu;
-      var transition;
-      for ( var i = 0, len = level2.length; i < len; i++ ) {
-        menu = level2[i].data;
-        transition = menu.getTransition();
-        transition.remove();
-        menu.getDom().content.classList.remove( 'u-invisible' );
+      treeTraversal.bfs( _menus.getRoot(), _handleSuspendTraversal );
 
-        if ( menu.isExpanded() ) {
-          menu.collapse();
-        }
-      }
-
-      // TODO: Combine this loop with the above
-      //       into a Breadth-First Search iteration.
-      var level3 = _menus.getAllAtLevel( 2 );
-      for ( var i2 = 0, len2 = level3.length; i2 < len2; i2++ ) {
-        level3[i2].data.resume();
-      }
-
+      // Ensure body events were removed.
+      _bodyDom.removeEventListener( 'mousemove', _handleMove );
+      _bodyDom.removeEventListener( 'mouseleave', _handleMove );
+      // Clear active menu.
+      _activeMenu = null;
       _suspended = true;
     }
 
     return _suspended;
+  }
+
+  /**
+   * Iterate over the sub menus and handle setting the resumed state.
+   * @param {TreeNode} node - The data source for the current menu.
+   */
+  function _handleResumeTraversal( node ) {
+    var nLevel = node.level;
+    var menu = node.data;
+
+    if ( nLevel === 1 ) {
+      var wrapperSel = '.o-mega-menu_content-2-wrapper';
+      var contentDom = menu.getDom().content;
+      var wrapperDom = contentDom.querySelector( wrapperSel );
+      var transition = menu.getTransition();
+
+      // This ensures the transition has been removed by MegaMenuMobile.
+      transition = _setTransitionElement( wrapperDom, transition );
+      transition.moveUp();
+
+      // TODO: The only reason hiding is necessary is that the
+      //       drop-shadow of the menu extends below its border,
+      //       so it's still visible when the menu slides -100% out of view.
+      //       Investigate whether it would be better to have a u-move-up-1_1x
+      //       or similar class to move up -110%. Or whether the drop-shadow
+      //       could be included within the bounds of the menu.
+      menu.getDom().content.classList.add( 'u-invisible' );
+      menu.setExpandTransition( transition, transition.moveToOrigin );
+      menu.setCollapseTransition( transition, transition.moveUp );
+
+      // TODO: Investigate whether deferred collapse has another solution.
+      //       This check is necessary since a call to an already collapsed
+      //       menu will set a deferred collapse that will be called
+      //       on expandEnd next time the flyout is expanded.
+      //       The deferred collapse is used in cases where the
+      //       user clicks the flyout menu while it is animating open,
+      //       so that it appears like they can collapse it, even when
+      //       clicking during the expand animation.
+      if ( menu.isExpanded() ) {
+        menu.collapse();
+      }
+    } else if ( nLevel === 2 ) {
+      menu.suspend();
+    }
+  }
+
+  /**
+   * Iterate over the sub menus and handle setting the suspended state.
+   * @param {TreeNode} node - The data source for the current menu.
+   */
+  function _handleSuspendTraversal( node ) {
+    var nLevel = node.level;
+    var menu = node.data;
+
+    if ( nLevel === 1 ) {
+      menu.clearTransitions();
+      menu.getDom().content.classList.remove( 'u-invisible' );
+
+      if ( menu.isExpanded() ) {
+        menu.collapse();
+      }
+    } else if ( nLevel === 2 ) {
+      menu.resume();
+    }
+  }
+
+  /**
+   * Set an element on an existing transition or create a new transition.
+   * @param {HTMLNode} element - Target of a transition.
+   * @param {MoveTransition} [setTransition] - The transition to apply.
+   * @returns {MoveTransition}
+   *   The passed in transition or a new transition if none was supplied.
+   */
+  function _setTransitionElement( element, setTransition ) {
+    var transition = setTransition;
+    if ( transition ) {
+      transition.setElement( element );
+    } else {
+      transition = new MoveTransition( element ).init();
+    }
+
+    return transition;
   }
 
   // Attach public events.

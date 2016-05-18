@@ -1,26 +1,18 @@
 'use strict';
 
+var secondaryNav = require( '../shared_objects/secondary-navigation' );
+
 function TheBureauPage() {
+  Object.assign( this, secondaryNav );
+
   this.get = function() {
-    browser.get( '/the-bureau/' );
+    browser.get( '/about-us/the-bureau/' );
   };
 
   this.pageTitle = function() { return browser.getTitle(); };
 
-  this.sideNav = element( by.css( '.o-secondary-navigation' ) );
-
   this.bureauFunctions =
   element( by.css( '[data-qa-hook="bureau-core-functions"]' ) );
-
-  this.directorsBio = element.all( by.css( '.bureau-bio' ) ).first();
-
-  this.directorsName =
-  this.directorsBio.element( by.css( '.bureau-bio_name' ) );
-
-  this.deputyDirectorsBio = element.all( by.css( '.bureau-bio' ) ).last();
-
-  this.deputyDirectorsName =
-  this.deputyDirectorsBio.element( by.css( '.bureau-bio_name' ) );
 }
 
 module.exports = TheBureauPage;

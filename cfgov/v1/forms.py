@@ -6,100 +6,13 @@ from util import ERROR_MESSAGES
 from django import forms
 from django.db.models import Q
 from django.forms.utils import ErrorList
-from django.contrib.auth import get_user_model
-from django.utils import timezone
-from django.core.exceptions import ValidationError, ObjectDoesNotExist
-from django.contrib.auth import authenticate
-from django.conf import settings
 from django.forms import widgets
+from taggit.models import Tag
 
 from .util import ref
 from .models.base import CFGOVPage
 from .util.util import most_common
 
-
-# importing wagtail.wagtailadmin.forms at module load time seems to have
-# caused some trouble with the translation subsystem being invoked before
-# it's ready-- so I've wrapped it in a function
-def login_form():
-    from wagtail.wagtailadmin import forms as wagtail_adminforms
-
-    from .models import base
-
-    class LoginForm(wagtail_adminforms.LoginForm):
-
-        def clean(self):
-            username = self.cleaned_data.get('username')
-            password = self.cleaned_data.get('password')
-
-            if username and password:
-                self.user_cache = authenticate(username=username,
-                                               password=password)
-
-                if (self.user_cache is None and username is not None):
-                    UserModel = get_user_model()
-
-                    try:
-                        user = UserModel._default_manager.get(
-                                username=username)
-                    except ObjectDoesNotExist:
-                        raise forms.ValidationError(
-                            self.error_messages['invalid_login'],
-                            code='invalid_login',
-                            params={'username':
-                                    self.username_field.verbose_name
-                                    },
-                        )
-
-                    # fail fast if user is already blocked for some other
-                    # reason
-                    self.confirm_login_allowed(user)
-
-                    fa, created = base.FailedLoginAttempt.objects.\
-                        get_or_create(user=user)
-                    now = time.time()
-                    fa.failed(now)
-                    # Defaults to a 2 hour lockout for a user
-                    time_period = now - int(settings.LOGIN_FAIL_TIME_PERIOD)
-                    attempts_allowed = int(settings.LOGIN_FAILS_ALLOWED)
-                    attempts_used = len(fa.failed_attempts.split(','))
-
-                    if fa.too_many_attempts(attempts_allowed, time_period):
-                        dt_now = timezone.now()
-                        lockout_expires = dt_now + timedelta(seconds=settings.LOGIN_FAIL_TIME_PERIOD)
-                        lockout = user.temporarylockout_set.create(expires_at=lockout_expires)
-                        lockout.save()
-                        raise ValidationError("This account is temporarily locked; please try later or <a href='/admin/password_reset/' style='color:white;font-weight:bold'>reset your password</a>")
-                    else:
-                        fa.save()
-                        raise ValidationError('Login failed. %s more attempts until your account will be temporarily locked.' % (attempts_allowed-attempts_used))
-
-                else:
-                    self.confirm_login_allowed(self.user_cache)
-
-                    dt_now = timezone.now()
-                    try:
-                        current_password_data = self.user_cache.passwordhistoryitem_set.latest()
-                    
-                        if dt_now > current_password_data.expires_at:
-                            raise ValidationError("This account is temporarily locked; please try later or <a href='/admin/password_reset/' style='color:white;font-weight:bold'>reset your password</a>")
-
-                    except ObjectDoesNotExist:
-                        pass
-
-                    return self.cleaned_data
-
-        def confirm_login_allowed(self, user):
-            super(LoginForm, self).confirm_login_allowed(user)
-            now = timezone.now()
-
-            lockout_query = user.temporarylockout_set.filter(expires_at__gt=now)
-
-            if lockout_query.count() > 0 :
-                raise ValidationError("This account is temporarily locked; please try later or <a href='/admin/password_reset/' style='color:white;font-weight:bold'>reset your password</a>")
-
-
-    return LoginForm
 
 class FilterErrorList(ErrorList):
     def __str__(self):
@@ -162,20 +75,21 @@ class CalenderPDFFilterForm(forms.Form):
 
 
 class FilterableListForm(forms.Form):
+    title_attrs = {
+        'placeholder': 'Search for a specific word in item title'
+    }
     topics_select_attrs = {
-        'class': 'chosen-select',
         'multiple': 'multiple',
         'data-placeholder': 'Search for topics',
     }
     authors_select_attrs = {
-        'class': 'chosen-select',
         'multiple': 'multiple',
         'data-placeholder': 'Search for authors'
     }
     from_select_attrs = {
         'class': 'js-filter_range-date js-filter_range-date__gte',
         'type': 'text',
-        'placeholder': 'dd/mm/yyyy',
+        'placeholder': 'mm/dd/yyyy',
         'data-type': 'date'
     }
     to_select_attrs = from_select_attrs.copy()
@@ -183,43 +97,27 @@ class FilterableListForm(forms.Form):
         'class': 'js-filter_range-date js-filter_range-date__lte',
     })
 
-    title = forms.CharField(max_length=250, required=False)
-    from_date = FilterDateField(
-        required=False,
-        input_formats=['%d/%m/%Y'],
-        widget=widgets.DateInput(attrs=from_select_attrs))
-    to_date = FilterDateField(
-        required=False,
-        input_formats=['%d/%m/%Y'],
-        widget=widgets.DateInput(attrs=to_select_attrs))
-    categories = forms.MultipleChoiceField(
-        required=False,
-        choices=ref.page_type_choices,
-        widget=widgets.CheckboxSelectMultiple())
-    topics = forms.MultipleChoiceField(
-        required=False,
-        choices=[],
-        widget=widgets.SelectMultiple(attrs=topics_select_attrs))
-    authors = forms.MultipleChoiceField(
-        required=False,
-        choices=[],
-        widget=widgets.SelectMultiple(attrs=authors_select_attrs))
+    title =      forms.CharField(max_length=250, required=False, widget=widgets.TextInput(attrs=title_attrs))
+    from_date =  FilterDateField(required=False, input_formats=['%m/%d/%Y'], widget=widgets.DateInput(attrs=from_select_attrs))
+    to_date =    FilterDateField(required=False, input_formats=['%m/%d/%Y'], widget=widgets.DateInput(attrs=to_select_attrs))
+    categories = forms.MultipleChoiceField(required=False, choices=ref.page_type_choices, widget=widgets.CheckboxSelectMultiple())
+    topics =     forms.MultipleChoiceField(required=False, choices=[], widget=widgets.SelectMultiple(attrs=topics_select_attrs))
+    authors =    forms.MultipleChoiceField(required=False, choices=[], widget=widgets.SelectMultiple(attrs=authors_select_attrs))
 
     def __init__(self, *args, **kwargs):
         parent = kwargs.pop('parent')
         hostname = kwargs.pop('hostname')
         super(FilterableListForm, self).__init__(*args, **kwargs)
-        self.set_topics(parent, hostname)
-        self.set_authors(parent, hostname)
+        page_ids = CFGOVPage.objects.live_shared(hostname).descendant_of(parent).values_list('id', flat=True)
+        self.set_topics(parent, page_ids, hostname)
+        self.set_authors(parent, page_ids, hostname)
 
     # Populate Topics' choices
-    def set_topics(self, parent, hostname):
-        tags = [tag for tags in
-                     [page.tags.names() for page in
-                      CFGOVPage.objects.live_shared(hostname).descendant_of(parent)]
-                     for tag in tags]
+    def set_topics(self, parent, page_ids, hostname):
+        tags = Tag.objects.filter(v1_cfgovtaggedpages_items__content_object__id__in=page_ids).values_list('name', flat=True)
+
         # Orders by most to least common tags
-        options = most_common(tags)
+        options = most_common(list(tags))
         most = [(option, option) for option in options[:3]]
         other = [(option, option) for option in options[3:]]
         self.fields['topics'].choices = \
@@ -227,13 +125,12 @@ class FilterableListForm(forms.Form):
              ('All other topics', tuple(other)))
 
     # Populate Authors' choices
-    def set_authors(self, parent, hostname):
-        all_authors = [author for authors in [page.authors.names() for page in
-                       CFGOVPage.objects.live_shared(hostname).descendant_of(
-                       parent)] for author in authors]
+    def set_authors(self, parent, page_ids, hostname):
+        authors = Tag.objects.filter(v1_cfgovauthoredpages_items__content_object__id__in=page_ids).values_list('name', flat=True)
+
         # Orders by most to least common authors
         self.fields['authors'].choices = [(author, author) for author in
-                                          most_common(all_authors)]
+                                          most_common(list(authors))]
 
     def clean(self):
         cleaned_data = super(FilterableListForm, self).clean()
@@ -288,7 +185,7 @@ class FilterableListForm(forms.Form):
 
     # Returns a list of query strings to associate for each field, ordered by
     # the field declaration for the form. Note: THEY MUST BE ORDERED IN THE
-    # SAME WAY AS THEY ARE DECLARED.
+    # SAME WAY AS THEY ARE DECLARED IN THE FORM DEFINITION.
     def get_query_strings(self):
         return [
             'title__icontains',      # title
@@ -298,7 +195,6 @@ class FilterableListForm(forms.Form):
             'tags__name__in',        # topics
             'authors__name__in',     # authors
         ]
-
 
 class EventArchiveFilterForm(FilterableListForm):
     def get_query_strings(self):
@@ -310,3 +206,36 @@ class EventArchiveFilterForm(FilterableListForm):
             'tags__name__in',        # topics
             'authors__name__in',     # authors
         ]
+
+
+class NewsroomFilterForm(FilterableListForm):
+    def __init__(self, *args, **kwargs):
+        parent = kwargs.pop('parent')
+        hostname = kwargs.pop('hostname')
+        super(FilterableListForm, self).__init__(*args, **kwargs)
+        try:
+            blog = CFGOVPage.objects.get(slug='blog')
+        except CFGOVPage.DoesNotExist:
+            print 'A blog landing page needs to be made'
+        query = CFGOVPage.objects.child_of_q(parent)
+        query |= CFGOVPage.objects.child_of_q(blog)
+        page_ids = CFGOVPage.objects.live_shared(hostname).filter(query).values_list('id', flat=True)
+        self.set_topics(parent, page_ids, hostname)
+        self.set_authors(parent, page_ids, hostname)
+
+
+class ActivityLogFilterForm(NewsroomFilterForm):
+    def __init__(self, *args, **kwargs):
+        parent = kwargs.pop('parent')
+        hostname = kwargs.pop('hostname')
+        super(FilterableListForm, self).__init__(*args, **kwargs)
+        query = CFGOVPage.objects.child_of_q(parent)
+        for slug in ['blog', 'newsroom', 'research-reports']:
+            try:
+                parent = CFGOVPage.objects.get(slug=slug)
+                query |= CFGOVPage.objects.child_of_q(parent)
+            except CFGOVPage.DoesNotExist:
+                print slug, 'does not exist'
+        page_ids = CFGOVPage.objects.live_shared(hostname).filter(query).values_list('id', flat=True)
+        self.set_topics(parent, page_ids, hostname)
+        self.set_authors(parent, page_ids, hostname)

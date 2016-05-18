@@ -1,7 +1,7 @@
 
 {# ==========================================================================
 
-   pagination()
+   Pagination
 
    ==========================================================================
 
@@ -9,21 +9,23 @@
 
    Builds pagination markup when given:
 
-   posts.page:          Current page number of the iterable list.
+   posts:                        TODO: fill in data type and description.
 
-   posts.filters:               Current filters applied to the iterable list.
+   posts.paginator:              TODO: fill in data type and description.
 
-   posts.next_button_href:      Link to the next page.
+   posts.paginator.num_pages:    Number of total pages.
 
-   posts.pages:                 Number of pages in the iterable list.
+   posts.number:                 TODO: fill in data type and description.
 
-   posts.previous_button_href:  Link to the previous page.
+   posts.previous_page_number(): Method to return previous page number.
+
+   posts.page:                   Current page number of the iterable list.
 
    ========================================================================== #}
 
+{% if posts and posts.paginator.num_pages > 1 %}
 {% from 'macros/util/url_parameters.html' import url_parameters %}
 
-{% if posts and posts.paginator.num_pages > 1 %}
     <nav class="m-pagination"
          role="navigation"
          aria-label="Pagination">
@@ -31,7 +33,7 @@
         <a class="btn btn__super m-pagination_btn-prev"
            href="?page={{ posts.previous_page_number()
                           ~ url_parameters(request.GET)
-                          ~ '#o-pagination-content_list' }}">
+                          ~ '#o-filterable-list-controls' }}">
         {%- else %}
         <a class="btn btn__super
                   btn__disabled
@@ -44,25 +46,34 @@
         <a class="btn btn__super m-pagination_btn-next"
            href="?page={{ posts.next_page_number()
                           ~ url_parameters(request.GET)
-                          ~ '#o-pagination-content_list' }}">
+                          ~ '#o-filterable-list-controls' }}">
         {%- else %}
         <a class="btn btn__super btn__disabled m-pagination_btn-next">
         {% endif -%}
             Older
             <span class="btn_icon__right cf-icon cf-icon-right"></span>
         </a>
-        <form data-js-hook="validate_pagination" action="#o-pagination-content_list">
+        <form action="#o-filterable-list-controls">
             <label for="m-pagination_current-page">
                 Page
                 <span class="u-visually-hidden">
                     number out of {{ posts.paginator.num_pages }} total pages
                 </span>
             </label>
+            {% for (key, value) in request.GET.items() %}
+                {% if value != '' %}
+                    <input type="hidden"
+                           name="{{ key }}"
+                           value="{{ value }}">
+                {% endif %}
+            {% endfor %}
             <input id="m-pagination_current-page"
                    name="page"
                    type="number"
                    min="1"
                    max="{{ posts.paginator.num_pages }}"
+                   pattern="[0-9]*"
+                   inputmode="numeric"
                    value="{{ posts.number }}">
             <span class="m-pagination_label">
                 of {{ posts.paginator.num_pages }}

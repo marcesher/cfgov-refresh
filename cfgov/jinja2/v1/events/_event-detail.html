@@ -1,3 +1,5 @@
+{% import 'macros/time.html' as time %}
+
 <article class="post post__event">
     <header>
         <h1 class="post_heading">
@@ -5,30 +7,28 @@
         </h1>
         <p class="post_dek">
         {% if (event_state == 'past') %}
-            {{ page.archive_body | striptags }}
+            {{ parse_links(page.archive_body) | safe }}
         {% elif (event_state == 'present') %}
-            {{ page.live_body | striptags }}
+            {{ parse_links(page.live_body) | safe }}
         {% elif (event_state == 'future') %}
-            {{ page.future_body | striptags }}
+            {{ parse_links(page.future_body) | safe }}
         {% endif %}
         </p>
-        <div>
-            <div class="modification-date date u-right">
+        <div class="t-event_details">
+            <div class="modification-date date">
                 <span>Updated</span>
-                {% import 'macros/time.html' as time %}
-                {{ time.render(page.latest_revision_created_at, {'date':true}) }}
+                {{ time.render(
+                    page.latest_revision_created_at,
+                    {'date': true}
+                ) }}
             </div>
-            {% import 'macros/share.html' as share with context %}
-            {{ share.render({
-                'title': page.title,
-                'hide_heading': true,
-                'twitter_options': {
-                    'text':     page.twtr_text,
-                    'related':  page.twtr_rel,
-                    'language': page.twtr_lang,
-                    'hashtags': page.twtr_hash
-                }
-            }) }}
+            {% import 'molecules/social-media.html' as social_media with context %}
+            {{ social_media.render( {
+                'title':            page.twtr_text,
+                'twitter_related':  page.twtr_rel,
+                'twitter_lang':     page.twtr_lang,
+                'twitter_hashtags': page.twtr_hash
+            } ) }}
         </div>
         {% from 'events/_macros.html' import event_venue as event_venue %}
         {{ event_venue( page, event_state ) }}
@@ -60,9 +60,10 @@
                       <span class="event-meta_description event-meta_description__block">
                           Video link available:
                       </span>
-                      {% import 'macros/time.html' as time %}
-                      {{ time.render(page.live_stream_date,
-                                     {'date':true, 'time':true, 'timezone':true}) }}
+                      {{ time.render(
+                          page.live_stream_date,
+                          timezone='America/New_York'
+                      ) }}
                   </p>
                 </div>
                 {% endif %}
@@ -82,8 +83,7 @@
                         Use the link below to troubleshoot the live video stream if it isn't playing properly.
                     </p>
                     <p>
-                        {# TODO: Add real link #}
-                        <a href="/">
+                        <a href="https://help.livestream.com/hc/en-us/sections/201923657-Watch">
                             Livestream video help FAQ
                         </a>
                     </p>
@@ -91,12 +91,12 @@
             </div>
         </aside>
         {% endif %}
-        {{ page.body | safe }}
+        {{ parse_links(page.body) | safe }}
     </div>
     {% if page.tags.names() | length %}
     <footer>
         {%- import 'tags.html' as tags %}
-        {{ tags.render(page.tags.names(), path) }}
+        {{ tags.render( related_metadata_tags(page), '', is_wagtail=True) }}
     </footer>
     {% endif %}
 </article>

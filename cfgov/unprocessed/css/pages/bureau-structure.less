@@ -257,24 +257,11 @@
         }
     }
 
-    &:not(:last-child):after {
-        content: '';
-        position: absolute;
-        left: 50%;
-        bottom: -(@grid_gutter-width / 2 + @node-border-width);
-        width: 0;
-        height: @grid_gutter-width / 2;
-        border-left: @spine-width solid @spine-color;
-    }
-
     .respond-to-max( @bp-xs-max, {
         &:not(:first-child) {
             margin: @margin / 2;
         }
 
-        &:nth-last-child(2):after {
-            border: none;
-        }
     } );
 }
 
@@ -308,7 +295,6 @@
     padding: @margin / 2 0;
     border-top: 1px solid @node-border-color;
     border-bottom: 1px solid @node-border-color;
-    margin-top: @margin;
 }
 
 .org-chart_node_more-info {
@@ -330,6 +316,10 @@
 
     &_name {
         .webfont-medium();
+    }
+
+    + .m-expandable_target {
+        margin-top: @margin;
     }
 }
 

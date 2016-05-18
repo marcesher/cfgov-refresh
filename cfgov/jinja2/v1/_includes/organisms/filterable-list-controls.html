@@ -46,7 +46,7 @@
             <div class="form-group">
                 <label class="form-label-header"
                        for="title">
-                    Title:
+                    Item name
                 </label>
                 {{ form.render_with_id(form.title,
                     'filter' ~ index ~ '_title') }}
@@ -179,9 +179,12 @@
 {% from 'molecules/notification.html' import render as notification with context %}
 {% from 'organisms/post-preview.html' import render as post_preview with context %}
 
-{% macro render(controls, form, index) %}
-    <div class="o-filterable-list-controls">
-        {% set has_active_filters = has_active_filters(page, request, index) %}
+{% macro render(controls, index) %}
+    <div class="o-filterable-list-controls"
+         id="o-filterable-list-controls">
+        {% set form = filter_data.forms.pop(0) %}
+        {% set posts = filter_data.page_sets.pop(0) %}
+        {% set has_active_filters = page.has_active_filters(request, index) %}
         {% if has_active_filters %}
             {% do controls.update({'is_expanded':true}) %}
         {% endif %}
@@ -212,9 +215,14 @@
                 {{ notification('success', true, posts.paginator.count ~ ' filtered results') }}
             {% endif %}
         {% endif %}
-        {% for post in posts %}
-            {{ post_preview(post, controls, form_id=index) }}
-        {% endfor %}
+        {% if controls.categories.page_type == 'activity-log' %}
+            {% import 'activity-log/_activity-list.html' as activity_list with context %}
+            {{ activity_list.render(posts, index) }}
+        {% else %}
+            {% for post in posts %}
+                {{ post_preview(post, controls, form_id=index) }}
+            {% endfor %}
+        {% endif %}
         {% include 'molecules/pagination.html' %}
     </div>
 {% endmacro %}

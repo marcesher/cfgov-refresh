@@ -1,7 +1,24 @@
+{# ==========================================================================
+
+   header.render()
+
+   ==========================================================================
+
+   Description:
+
+   Creates markup for Header organism.
+
+   show_banner: Whether the global banner molecule is included.
+                Default is true.
+
+   ========================================================================== #}
+
+{% macro render( show_banner=false ) %}
+
 <header class="o-header"
         role="banner">
 
-    {% if flag_enabled('BETA_NOTICE') %}
+    {% if flag_enabled('BETA_NOTICE') and show_banner %}
     <div class="m-global-banner">
         <div class="wrapper
                     wrapper__match-content
@@ -39,15 +56,23 @@
     {% import 'molecules/global-eyebrow.html' as global_eyebrow with context %}
     {{ global_eyebrow.render( true ) }}
 
-    <div class="o-header_content">
+    <div class="o-header_content no-js">
 
-        <div class="wrapper">
+        <div class="wrapper wrapper__match-content">
             {% import 'molecules/global-header-cta.html' as global_header_cta with context %}
             {{ global_header_cta.render( true ) }}
 
             {% include 'molecules/global-search.html' with context %}
 
             <a class="o-header_logo" href="/">
+                <!--[if lt IE 9]>
+                    <img class="o-header_logo-img"
+                         src="/static/img/logo_sm-exec.png"
+                         alt="Consumer Financial Protection Bureau"
+                         width="237"
+                         height="50">
+                <![endif]-->
+                <!--[if gt IE 8]><!-->
                 <img class="o-header_logo-img u-js-only"
                      src="/static/img/logo_sm-exec.svg"
                      onerror="this.onerror=null;this.src='/static/img/logo_sm-exec.png';"
@@ -61,6 +86,7 @@
                          width="237"
                          height="50">
                 </noscript>
+                <!--<![endif]-->
             </a>
 
             {% block primary_nav %}
@@ -69,4 +95,11 @@
         </div>
 
     </div>
+    <script>
+      /* TODO: scope no-js to individual molecules/organisms. This is a hack to fix no-js on the on-demand header, while also allowing the menu to be scoped to o-header for on-demand pages. */
+      var headerDom = document.querySelector( '.o-header_content' );
+      headerDom.className = headerDom.className.replace('no-js','js');
+    </script>
 </header>
+
+{% endmacro %}

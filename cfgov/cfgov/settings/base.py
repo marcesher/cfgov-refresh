@@ -16,6 +16,11 @@ SECRET_KEY = os.environ.get('SECRET_KEY', os.urandom(32))
 # Use the django default password hashing
 PASSWORD_HASHERS = global_settings.PASSWORD_HASHERS
 
+try:
+    import mysql
+    MYSQL_ENGINE = 'mysql.connector.django'
+except ImportError:
+    MYSQL_ENGINE = 'django.db.backends.mysql'
 
 # Application definition
 
@@ -37,6 +42,7 @@ INSTALLED_APPS = (
     'compressor',
     'taggit',
 
+    'overextends',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -49,23 +55,29 @@ INSTALLED_APPS = (
     'v1',
     'core',
     'sheerlike',
+    'legacy',
     'django_extensions',
+    'reversion',
+    'tinymce'
 )
 
 OPTIONAL_APPS=[
-    {'import':'noticeandcomment','apps':('noticeandcomment','cfpb_common')},
-    {'import':'cfpb_common','apps':('cfpb_common','cfpb_common')},
-    {'import':'jobmanager','apps':('jobmanager','cfpb_common')},
-    {'import':'cal','apps':('cal','cfpb_common')},
-    {'import':'comparisontool','apps':('comparisontool','haystack','cfpb_common')},
-    {'import':'agreements','apps':('agreements','haystack', 'cfpb_common')},
-    {'import':'knowledgebase','apps':('knowledgebase','haystack', 'cfpb_common')},
-    {'import':'selfregistration','apps':('selfregistration','cfpb_common')},
-    {'import':'hud_api_replace','apps':('hud_api_replace','cfpb_common')},
+    {'import':'noticeandcomment','apps':('noticeandcomment',)},
+    {'import':'jobmanager','apps':('jobmanager', 'reversion', 'tinymce')},
+    {'import':'cal','apps':('cal',)},
+    {'import':'comparisontool','apps':('comparisontool','haystack',)},
+    {'import':'agreements','apps':('agreements','haystack',)},
+    {'import':'knowledgebase','apps':('knowledgebase','haystack',)},
+    {'import':'selfregistration','apps':('selfregistration',)},
+    {'import':'hud_api_replace','apps':('hud_api_replace',)},
     {'import':'retirement_api','apps':('retirement_api',)},
     {'import':'complaint','apps':('complaint','complaintdatabase','complaint_common',)},
     {'import':'ratechecker','apps':('ratechecker','rest_framework')},
     {'import':'countylimits','apps':('countylimits','rest_framework')},
+    {'import':'regcore','apps':('regcore','regcore_read', 'regcore_write')},
+    {'import':'eregsip','apps':('eregsip',)},
+    {'import':'regulations','apps':('regulations',)},
+    {'import':'picard','apps':('picard',)},
 ]
 
 MIDDLEWARE_CLASSES = (
@@ -121,13 +133,15 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'cfgov.wsgi.application'
 
+# Admin Url Access
+ALLOW_ADMIN_URL = os.environ.get('ALLOW_ADMIN_URL', False)
 
 # Database
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
+        'ENGINE': MYSQL_ENGINE,
         'NAME': os.environ.get('MYSQL_NAME', 'v1'),
         'USER': os.environ.get('MYSQL_USER', 'root'),
         'PASSWORD': os.environ.get('MYSQL_PW', ''),
@@ -187,7 +201,8 @@ if NEMO_PATH.exists():
 ALLOWED_HOSTS = ['*']
 
 EXTERNAL_LINK_PATTERN = r'https?:\/\/(?:www\.)?(?![^\?]+gov)(?!(content\.)?localhost).*'
-EXTERNAL_ICON_PATTERN = r'(https?:\/\/(?:www\.)?(?![^\?]*(cfpb|consumerfinance).gov)(?!(content\.)?localhost).*)'
+NONCFPB_LINK_PATTERN = r'(https?:\/\/(?:www\.)?(?![^\?]*(cfpb|consumerfinance).gov)(?!(content\.)?localhost).*)'
+FILES_LINK_PATTERN = r'https?:\/\/files\.consumerfinance.gov\/f\/\S+\.[a-z]+'
 
 # Wagtail settings
 
@@ -197,6 +212,7 @@ TAGGIT_CASE_INSENSITIVE = True
 
 SHEER_ELASTICSEARCH_SERVER = os.environ.get('ES_HOST', 'localhost') + ':' + os.environ.get('ES_PORT', '9200')
 SHEER_ELASTICSEARCH_INDEX = os.environ.get('SHEER_ELASTICSEARCH_INDEX', 'content')
+ELASTICSEARCH_BIGINT = 50000
 
 MAPPINGS = PROJECT_ROOT.child('es_mappings')
 SHEER_PROCESSORS = \
@@ -205,16 +221,6 @@ SHEER_PROCESSORS = \
             "url": "$WORDPRESS/leadership-calendar/cfpb-leadership.json",
             "processor": "processors.django_calendar_event",
             "mappings": MAPPINGS.child("calendar_event.json")
-        },
-        "careers": {
-            "url": "$WORDPRESS/jobs/jobs.json",
-            "processor": "processors.django_career",
-            "mappings": MAPPINGS.child("career.json")
-        },
-        "contact": {
-            "url": "$WORDPRESS/api/get_posts/?post_type=contact",
-            "processor": "processors.wordpress_contact",
-            "mappings": MAPPINGS.child("contact.json")
         },
         "history": {
             "url": "$WORDPRESS/api/get_posts/?post_type=history",
@@ -240,21 +246,6 @@ SHEER_PROCESSORS = \
             "url": "$WORDPRESS/api/get_posts/?post_type=page",
             "processor": "processors.wordpress_page",
             "mappings": MAPPINGS.child("pages.json")
-        },
-        "posts": {
-            "url": "$WORDPRESS/api/get_posts/",
-            "processor": "processors.wordpress_post",
-            "mappings": MAPPINGS.child("posts.json")
-        },
-        "events": {
-            "url": "$WORDPRESS/api/get_posts/?post_type=event",
-            "processor": "processors.wordpress_event",
-            "mappings": MAPPINGS.child("events.json")
-        },
-        "newsroom": {
-            "url": "$WORDPRESS/api/get_posts/?post_type=cfpb_newsroom",
-            "processor": "processors.wordpress_newsroom",
-            "mappings": MAPPINGS.child("newsroom.json")
         },
         "views": {
             "url": "$WORDPRESS/api/get_posts/?post_type=view",
@@ -313,8 +304,7 @@ PDFREACTOR_LIB = os.environ.get('PDFREACTOR_LIB', '/opt/PDFreactor/wrappers/pyth
 #LEGACY APPS
 
 STATIC_VERSION = ''
-LEGACY_APP_URLS={'jobmanager': True,
-                 'cal':True,
+LEGACY_APP_URLS={ 'cal':False,
                  'comparisontool':True,
                  'agreements':True,
                  'knowledgebase':True,
@@ -324,6 +314,8 @@ LEGACY_APP_URLS={'jobmanager': True,
                  'complaint':True,
                  'complaintdatabase':True,
                  'ratechecker':True,
+                 'regcore':True,
+                 'regulations':True,
                  'countylimits':True,
                  'noticeandcomment':True}
 
@@ -403,6 +395,7 @@ LOGIN_FAIL_TIME_PERIOD = os.environ.get('LOGIN_FAIL_TIME_PERIOD', 120 * 60)
 # number of failed attempts
 LOGIN_FAILS_ALLOWED = os.environ.get('LOGIN_FAILS_ALLOWED', 5)
 LOGIN_REDIRECT_URL='/admin/'
+LOGIN_URL = "/admin/login/"
 
 
 SHEER_SITES = {
@@ -412,5 +405,95 @@ SHEER_SITES = {
             Path(REPOSITORY_ROOT, '../owning-a-home/dist')),
         'fin-ed-resources':
             Path(os.environ.get('FIN_ED_SHEER_PATH') or
-            Path(REPOSITORY_ROOT, '../fin-ed-resources/dist'))
+            Path(REPOSITORY_ROOT, '../fin-ed-resources/dist')),
+        'know-before-you-owe':
+            Path(os.environ.get('KBYO_SHEER_PATH') or
+            Path(REPOSITORY_ROOT, '../know-before-you-owe/dist')),
+        'tax-time-saving':
+            Path(os.environ.get('TAX_TIME_SHEER_PATH') or
+            Path(REPOSITORY_ROOT, '../tax-time-saving/dist')),
 }
+
+CACHES = {
+    'default' : {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': '/tmp/eregs_cache',
+    },
+    'eregs_longterm_cache': {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': '/tmp/eregs_longterm_cache',
+        'TIMEOUT': 60*60*24*15,     # 15 days
+        'OPTIONS': {
+            'MAX_ENTRIES': 10000,
+        },
+    },
+    'api_cache':{
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'api_cache_memory',
+        'TIMEOUT': 3600,
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000,
+        },
+    }
+}
+
+CACHE_MIDDLEWARE_ALIAS = 'default'
+CACHE_MIDDLEWARE_KEY_PREFIX = 'eregs'
+CACHE_MIDDLEWARE_SECONDS = 600
+
+#The base URL for the API that we use to access layers and the regulation.
+API_BASE = os.environ.get('EREGS_API_BASE', '')
+
+#When we generate an full HTML version of the regulation, we want to
+#write it out somewhere. This is where.
+OFFLINE_OUTPUT_DIR = ''
+
+DATE_FORMAT = 'n/j/Y'
+
+GOOGLE_ANALYTICS_ID = ''
+GOOGLE_ANALYTICS_SITE = ''
+
+CACHE_MIDDLEWARE_ALIAS = 'default'
+CACHE_MIDDLEWARE_KEY_PREFIX = 'eregs'
+CACHE_MIDDLEWARE_SECONDS = 1800
+
+
+#eRegs
+BACKENDS = {
+    'regulations': 'regcore.db.django_models.DMRegulations',
+    'layers': 'regcore.db.django_models.DMLayers',
+    'notices': 'regcore.db.django_models.DMNotices',
+    'diffs': 'regcore.db.django_models.DMDiffs',
+}
+
+CACHES = {
+    'default' : {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': '/tmp/eregs_cache',
+    },
+    'eregs_longterm_cache': {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': '/tmp/eregs_longterm_cache',
+        'TIMEOUT': 60*60*24*15,     # 15 days
+        'OPTIONS': {
+            'MAX_ENTRIES': 10000,
+        },
+    },
+    'api_cache':{
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'api_cache_memory',
+        'TIMEOUT': 3600,
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000,
+        },
+    }
+}
+
+PICARD_SCRIPTS_DIRECTORY = os.environ.get('PICARD_SCRIPTS_DIRECTORY',REPOSITORY_ROOT.child('picard_scripts'))
+
+# GovDelivery environment variables
+ACCOUNT_CODE = os.environ.get('GOVDELIVERY_ACCOUNT_CODE')
+
+# Regulations.gov environment variables
+REGSGOV_BASE_URL = os.environ.get('REGSGOV_BASE_URL')
+REGSGOV_API_KEY = os.environ.get('REGSGOV_API_KEY')
