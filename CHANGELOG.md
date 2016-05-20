@@ -16,13 +16,49 @@ Given the `MAJOR.MINOR.PATCH` pattern, here is how we decide to increment:
 ## Unreleased
 
 ### Added
+
+### Changes
+
+### Removed
+
+### Fixed
+
+
+## 3.0.0-3.3.17 - 2016-05-20
+
+### Added
+
+- Missing token provider for forms submitted by JS
+- Ability to refresh akamai cache on page publish
+- Adding Acceptance tests for the Video Player
+- Adding Validation code and url param fix for Ustream player
+
+### Changes
+- Rename Events body field => Subheading 
+- Switch render location of live/future body fields to under the map (new body location)
+- Change date used for post preview from date published to actual event date. 
+- Fixes issue with spacing after the last item in a full-width component
+- Adding Validation code and url param fix for Ustream player.
+
+### Removed
+
+### Fixed
+
+## 3.0.0-3.3.16 - 2016-05-19
+
+### Added
 - `parse_links` calls on rich text fields on the rest of the fields
 - Add unit tests for filterable list functions
 - Added browser tests for the multiselect.
+- Fix category filtering
+- Ability to refresh akamai cache on page publish
 
 ### Changes
 - filterable_context.py -> filterable_list.py
 - Refactored the filterable list logic for modularity and testability
+- Rename Events body field => Subheading
+- Switch render location of live/future body fields to under the map (new body location)
+- Change date used for post preview from date published to actual event date.
 
 ### Removed
 
@@ -49,6 +85,7 @@ Given the `MAJOR.MINOR.PATCH` pattern, here is how we decide to increment:
 ### Fixed
 
 - Fixed a validation bug in the Multiselect.
+- Fixed issue with spacing after the last-child.
 
 
 ## 3.0.0-3.3.14 - 2016-05-11
@@ -96,6 +133,7 @@ Given the `MAJOR.MINOR.PATCH` pattern, here is how we decide to increment:
 
 ### Changed
 - Updated event times to show EDT.
+- Frontend: Added init flag when initializing atomic components.
 
 
 ## 3.0.0-3.3.11 - 2016-05-03
